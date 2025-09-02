@@ -38,6 +38,13 @@ namespace E_CommerceSystem.Services
             return allOrderProducts;
         }
 
+
+        public IEnumerable<Order> GetAllOrders()
+        {
+            return _orderRepo.GetAllOrders(); // repo should return IEnumerable<Order>
+        }
+
+
         public IEnumerable<OrdersOutputDTO> GetAllOrdersDto(int uid)
         {
             var lines = GetAllOrders(uid); // List<OrderProducts>

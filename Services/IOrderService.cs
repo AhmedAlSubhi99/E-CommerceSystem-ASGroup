@@ -20,6 +20,9 @@ namespace E_CommerceSystem.Services
         // Entity fetch (needed by OrderSummaryService)
         Order? GetOrderEntityById(int oid);
 
+        IEnumerable<Order> GetAllOrders();
+
+
         // Mutations
         void AddOrder(Order order);
         void UpdateOrder(Order order);
