@@ -6,8 +6,6 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace E_CommerceSystem.Controllers
 {
@@ -21,7 +19,7 @@ namespace E_CommerceSystem.Controllers
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
 
-        public ProductController(IProductService productService, IConfiguration configuration)
+        public ProductController(IProductService productService, IConfiguration configuration, IMapper mapper)
         {
             _productService = productService;
             _configuration = configuration;
@@ -141,7 +139,6 @@ namespace E_CommerceSystem.Controllers
                     return NotFound("No products found matching the given criteria.");
                 }
 
-                // map to DTO list
                 var result = _mapper.Map<IEnumerable<ProductDTO>>(products);
                 return Ok(result);
             }

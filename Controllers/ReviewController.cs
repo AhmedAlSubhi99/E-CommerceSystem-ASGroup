@@ -17,7 +17,7 @@ namespace E_CommerceSystem.Controllers
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
 
-        public ReviewController(IReviewService reviewService, IConfiguration configuration)
+        public ReviewController(IReviewService reviewService, IConfiguration configuration, IMapper mapper)
         {
             _reviewService = reviewService;
             _configuration = configuration;
@@ -87,40 +87,31 @@ namespace E_CommerceSystem.Controllers
                 return StatusCode(500, $"An error occurred while retrieving reviews. {ex.Message}");
             }
         }
-
-        [HttpDelete("DeleteReview/{ReviewId}")]
-        public IActionResult DeleteReview(int ReviewId)
+        [HttpDelete("DeleteReview/{reviewId}")]
+        public IActionResult DeleteReview(int reviewId)
         {
-
             try
             {
-                var review = _reviewService.GetReviewById(ReviewId); 
-                if (review == null)
-                    return NotFound($"Review with ID {ReviewId} not found.");
+                // 1) Load the entity (has UID)
+                var review = _reviewService.GetReviewById(reviewId);
+                if (review == null) return NotFound($"Review with ID {reviewId} not found.");
 
-                // Retrieve the Authorization header from the request
+                // 2) Get user id from token (your helper method)
                 var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+                var userId = GetUserIdFromToken(token); // whatever your helper is called
+                var uid = int.Parse(userId);
 
-                // Decode the token to check user role
-                var userId = GetUserIdFromToken(token);
-
-                // Extract user ID 
-                int uid = int.Parse(userId);
-
-                if(review.UID == uid)
-                {
-                    _reviewService.DeleteReview(ReviewId);
-
-                    return Ok($"Review whith ReviewId {ReviewId} Deleted successfully.");
-                }
-                else
+                // 3) Ownership check
+                if (review.UID != uid)
                     return BadRequest("You are not authorized to delete this review.");
+
+                // 4) Delete
+                _reviewService.DeleteReview(reviewId);
+                return Ok($"Review with ReviewId {reviewId} Deleted successfully.");
             }
             catch (Exception ex)
             {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while deleting review. {(ex.Message)}");
-
+                return StatusCode(500, $"An error occurred while deleting review. ({ex.Message})");
             }
         }
 

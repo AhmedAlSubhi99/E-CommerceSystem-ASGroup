@@ -19,7 +19,7 @@ namespace E_CommerceSystem.Controllers
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
 
-        public UserController(IUserService userService, IConfiguration configuration)
+        public UserController(IUserService userService, IConfiguration configuration, IMapper mapper)
         {
             _userService = userService;
             _configuration = configuration;
