@@ -97,11 +97,15 @@ cd E-CommerceSystem
 ```
 ### 2. Configure Database
 Update appsettings.json:
+```bash
 "ConnectionStrings": {
   "DefaultConnection": "Server=.;Database=ECommerceDB;Trusted_Connection=True;TrustServerCertificate=True;"}
+```
 
 ### 3. Apply Migrations
+```bash
 update-database
+```
 
 ## Open Swagger docs:
 -👉 https://localhost:5001/swagger
@@ -109,50 +113,56 @@ update-database
 ---
 
 ## 🌐 API Information
--User
-POST /api/User/Register → create new user
 
-POST /api/User/Login → login and get JWT token
+### User
 
-GET /api/User/GetUserById/{id} → get user details
+- POST /api/User/Register → create new user
 
--Product
-POST /api/Product/AddNewProduct
+- POST /api/User/Login → login and get JWT token
 
-GET /api/Product/GetAllProducts?pageNumber=1&pageSize=10
+- GET /api/User/GetUserById/{id} → get user details
 
-GET /api/Product/GetProductById/{id}
+### Product
 
-PUT /api/Product/UpdateProduct?productId=1
+- POST /api/Product/AddNewProduct
 
-DELETE /api/Product/DeleteProduct/{id}
+- GET /api/Product/GetAllProducts?pageNumber=1&pageSize=10
 
--Order
-POST /api/Order/PlaceOrder
+- GET /api/Product/GetProductById/{id}
+
+- PUT /api/Product/UpdateProduct?productId=1
+
+- DELETE /api/Product/DeleteProduct/{id}
+
+### Order
+
+- POST /api/Order/PlaceOrder
 Example body:
 [
   { "productName": "Laptop", "quantity": 1 },
   { "productName": "Mouse", "quantity": 2 }
 ]
-GET /api/Order/GetAllOrders
+- GET /api/Order/GetAllOrders
 
-GET /api/Order/GetOrderById/{id}
+- GET /api/Order/GetOrderById/{id}
 
--Review
-POST /api/Review/AddReview?pid=1
+### Review
 
-GET /api/Review/GetAllReviews?productId=1&pageNumber=1&pageSize=5
+- POST /api/Review/AddReview?pid=1
 
-PUT /api/Review/UpdateReview?ReviewId=1
+- GET /api/Review/GetAllReviews?productId=1&pageNumber=1&pageSize=5
 
-DELETE /api/Review/DeleteReview/{id}
+- PUT /api/Review/UpdateReview?ReviewId=1
+
+- DELETE /api/Review/DeleteReview/{id}
 
 ## 🧭 Sample API Workflow (End-to-End)
 This shows a typical customer journey with example requests.
 You can test the same inside Swagger.
 
 ### 1) Register a new user
-POST /api/User/Register
+
+- POST /api/User/Register
 {
   "uName": "Samir",
   "email": "samir@example.com",
@@ -160,14 +170,15 @@ POST /api/User/Register
   "phone": "968-9000-0000",
   "role": "Customer"
 }
+
 ### 2) Login → Get a JWT
 
-POST /api/User/Login
+- POST /api/User/Login
 { "email": "samir@example.com", "password": "P@ssw0rd!2025" }
 Response: a JWT token
 
 ### 3) Add a product
-POST /api/Product/AddNewProduct
+- POST /api/Product/AddNewProduct
 Authorization: Bearer <JWT>
 {
   "productName": "Gaming Mouse",
@@ -177,14 +188,14 @@ Authorization: Bearer <JWT>
 }
 ### 4) Place an order
 
-POST /api/Order/PlaceOrder
+- POST /api/Order/PlaceOrder
 Authorization: Bearer <JWT>
 [
   { "productName": "Gaming Mouse", "quantity": 2 }
 ]
 
 ### 5) Add a review
-POST /api/Review/AddReview?pid=1
+- POST /api/Review/AddReview?pid=1
 Authorization: Bearer <JWT>
 { "rating": 5, "comment": "Excellent quality and fast shipping!" }
 
