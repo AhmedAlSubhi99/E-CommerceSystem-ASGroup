@@ -19,5 +19,8 @@ namespace E_CommerceSystem.Models
 
         [JsonIgnore]
         public virtual ICollection <OrderProducts> OrderProducts { get; set; }
+        public string? Status { get; set; } = "Pending";
+
+
     }
 }

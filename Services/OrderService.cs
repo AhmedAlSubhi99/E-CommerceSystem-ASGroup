@@ -14,6 +14,9 @@ namespace E_CommerceSystem.Services
         private readonly IProductService _productService;
         private readonly IOrderProductsService _orderProductsService;
 
+        public IEnumerable<Order> GetAllOrders() => _orderRepo.GetAllOrders();      // must return IEnumerable<Order>
+        public Order? GetOrderEntityById(int oid) => _orderRepo.GetOrderById(oid);  // returns Order
+
         public OrderService(IOrderRepo orderRepo, IProductService productService, IOrderProductsService orderProductsService)
         {
             _orderRepo = orderRepo;
@@ -164,5 +167,7 @@ namespace E_CommerceSystem.Services
             UpdateOrder(order);
 
         }
+
+
     }
 }

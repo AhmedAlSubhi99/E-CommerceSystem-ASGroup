@@ -6,11 +6,16 @@ namespace E_CommerceSystem.Services
     {
         List<OrderProducts> GetAllOrders(int uid);
         IEnumerable<OrdersOutputOTD> GetOrderById(int oid, int uid);
+        IEnumerable<Order> GetAllOrders();      
+        Order? GetOrderEntityById(int oid);     
         IEnumerable<Order> GetOrderByUserId(int uid);
         void DeleteOrder(int oid);
 
         void AddOrder(Order order);
         void UpdateOrder(Order order);
        void PlaceOrder(List<OrderItemDTO> items, int uid);
+
+
+
     }
 }

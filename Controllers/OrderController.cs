@@ -115,6 +115,28 @@ namespace E_CommerceSystem.Controllers
 
             throw new UnauthorizedAccessException("Invalid or unreadable token.");
         }
+
+
+        [Authorize]
+        [HttpGet("{orderId}/summary")]
+        public ActionResult<OrderSummaryDTO> GetSummary(
+    int orderId,
+    [FromServices] IOrderSummaryService summaryService)
+        {
+            return Ok(summaryService.GetSummaryByOrderId(orderId));
+        }
+
+        [Authorize(Roles = "admin")]
+        [HttpGet("summaries")]
+        public ActionResult<IEnumerable<OrderSummaryDTO>> GetSummaries(
+    [FromServices] IOrderSummaryService summaryService,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 20)
+            
+        {
+            return Ok(summaryService.GetSummaries(pageNumber, pageSize));
+        }
+
     }
 
 

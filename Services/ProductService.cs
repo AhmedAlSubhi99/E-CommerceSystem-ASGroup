@@ -1,4 +1,5 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Cryptography;
@@ -12,6 +13,13 @@ namespace E_CommerceSystem.Services
         public ProductService(IProductRepo productRepo)
         {
             _productRepo = productRepo;
+        }
+        private readonly IMapper _mapper;
+
+        public ProductService(IProductRepo productRepo, IMapper mapper)
+        {
+            _productRepo = productRepo;
+            _mapper = mapper;
         }
 
 
@@ -75,5 +83,36 @@ namespace E_CommerceSystem.Services
                 throw new KeyNotFoundException($"Product with Nmae {productName} not found.");
             return product;
         }
+        public (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(
+    int pageNumber = 1, int pageSize = 20, string? name = null,
+    decimal? minPrice = null, decimal? maxPrice = null)
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 200) pageSize = 20;
+
+            // Base query from repo 
+            var q = _productRepo.GetAllProducts().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(name))
+                q = q.Where(p => p.ProductName.Contains(name));
+
+            if (minPrice.HasValue)
+                q = q.Where(p => p.Price >= minPrice.Value);
+
+            if (maxPrice.HasValue)
+                q = q.Where(p => p.Price <= maxPrice.Value);
+
+            var total = q.Count();
+
+            var page = q
+                .OrderBy(p => p.PID) 
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var items = _mapper.Map<IEnumerable<ProductDTO>>(page);
+            return (items, total);
+        }
+
     }
 }

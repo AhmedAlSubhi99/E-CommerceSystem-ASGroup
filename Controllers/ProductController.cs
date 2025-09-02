@@ -179,5 +179,25 @@ namespace E_CommerceSystem.Controllers
 
             throw new UnauthorizedAccessException("Invalid or unreadable token.");
         }
+
+        [HttpGet("Paged")]
+        [AllowAnonymous] 
+        public IActionResult GetPaged(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 20,
+    [FromQuery] string? name = null,
+    [FromQuery] decimal? minPrice = null,
+    [FromQuery] decimal? maxPrice = null)
+        {
+            var (items, totalCount) = _productService.GetAllPaged(pageNumber, pageSize, name, minPrice, maxPrice);
+            return Ok(new
+            {
+                pageNumber,
+                pageSize,
+                totalCount,
+                items
+            });
+        }
+
     }
 }
