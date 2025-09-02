@@ -89,11 +89,11 @@ The system uses the following relationships:
 ---
 
 ## 🚀 Getting Started
-### 1. Clone & Restore
+### 1. Clone 
 ```bash
 git clone https://github.com/AhmedAlSubhi99/E-CommerceSystem.git
 cd E-CommerceSystem
-dotnet restore
+
 
 ###2. Configure Database
 Update appsettings.json:
@@ -101,10 +101,7 @@ Update appsettings.json:
   "DefaultConnection": "Server=.;Database=ECommerceDB;Trusted_Connection=True;TrustServerCertificate=True;"}
 
 ###3. Apply Migrations
-dotnet ef database update
-
-###4. Run the API
-dotnet run
+update-database
 
 Open Swagger docs:
 👉 https://localhost:5001/swagger
