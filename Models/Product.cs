@@ -34,5 +34,8 @@ namespace E_CommerceSystem.Models
 
         public int SupplierId { get; set; }
         public Supplier Supplier { get; set; }
+
+        public string? ImageUrl { get; set; }
+
     }
 }

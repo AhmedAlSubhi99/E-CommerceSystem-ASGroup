@@ -3,6 +3,7 @@ using AutoMapper;
 using E_CommerceSystem.Repositories;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -102,6 +103,7 @@ namespace E_CommerceSystem
 
 
 
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -113,6 +115,7 @@ namespace E_CommerceSystem
 
             app.UseAuthentication(); //jwt check middleware
             app.UseAuthorization();
+            app.UseStaticFiles();           // serve wwwroot
 
 
             app.MapControllers();

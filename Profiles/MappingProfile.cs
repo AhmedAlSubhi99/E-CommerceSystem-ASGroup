@@ -23,6 +23,7 @@ public class MappingProfile : Profile
         // Product 
         // -----------------
         CreateMap<Product, ProductDTO>().ReverseMap();
+    
 
         // -----------------
         // User 

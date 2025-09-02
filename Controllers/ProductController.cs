@@ -26,51 +26,50 @@ namespace E_CommerceSystem.Controllers
             _mapper = mapper;
         }
 
+        [Authorize(Roles = "admin")]
+        [RequestSizeLimit(50_000_000)] // keep upload-friendly limit
         [HttpPost("AddProduct")]
-        public IActionResult AddNewProduct(ProductDTO productInput)
+        public async Task<IActionResult> AddNewProduct([FromForm] ProductDTO productInput, IFormFile? imageFile)
         {
-            try
-            {
-                // Retrieve the Authorization header from the request
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            if (productInput == null) return BadRequest("Product data is required.");
 
-                // Decode the token to check user role
-                var userRole = GetUserRoleFromToken(token);
+            if (imageFile is not null && imageFile.Length > 0)
+                productInput.ImageUrl = await SaveProductImage(imageFile);
 
-                // Only allow Admin users to add products
-                if (userRole != "admin")
-                {
-                    return BadRequest("You are not authorized to perform this action.");
-                }
-
-                // Check if input data is null
-                if (productInput == null)
-                {
-                    return BadRequest("Product data is required.");
-                }
-
-                // Create a new product
-                //var product = new Product
-                //{
-                //    ProductName = productInput.ProductName,
-                //    Price = productInput.Price,
-                //    Description = productInput.Description,
-                //    Stock = productInput.Stock,
-                //    OverallRating = 0
-                //};
-                var product = _mapper.Map<Product>(productInput);
-
-                // Add the new product to the database/service layer
-                _productService.AddProduct(product);
-
-                return Ok(_mapper.Map<ProductDTO>(product));
-            }
-            catch (Exception ex)
-            {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while adding the product: {ex.Message}");
-            }
+            var product = _mapper.Map<Product>(productInput);
+            _productService.AddProduct(product);
+            return Ok(_mapper.Map<ProductDTO>(product));
         }
+
+
+        //Helper method to save the image and return its URL
+        private static readonly string[] AllowedImageExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+        private async Task<string> SaveProductImage(IFormFile file)
+        {
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!AllowedImageExtensions.Contains(ext) || !file.ContentType.StartsWith("image/"))
+                throw new InvalidOperationException("Only JPG, PNG, or WEBP images are allowed.");
+
+            const long maxBytes = 50 * 1024 * 1024; // 10 MB
+            if (file.Length > maxBytes)
+                throw new InvalidOperationException("File too large.");
+
+            var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
+            Directory.CreateDirectory(uploadsRoot);
+
+            var fileName = $"{Guid.NewGuid():N}{ext}";
+            var path = Path.Combine(uploadsRoot, fileName);
+
+            using (var stream = new FileStream(path, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Public URL served by UseStaticFiles()
+            return $"/uploads/products/{fileName}";
+        }
+
 
         [HttpPut("UpdateProduct/{productId}")]
         public IActionResult UpdateProduct(int productId, ProductDTO productInput)
