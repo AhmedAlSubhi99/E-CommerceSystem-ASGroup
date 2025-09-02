@@ -18,3 +18,4 @@ namespace E_CommerceSystem.Models
         public int Stock { get; set; }
     }
 }
+
