@@ -114,9 +114,9 @@ namespace E_CommerceSystem.Controllers
         [HttpPost("{orderId:int}/Cancel")]
         public async Task<IActionResult> Cancel(int orderId)
         {
-            // You already decode JWT elsewhere; reuse your helper.
+            
             var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            var userIdStr = GetUserIdFromToken(token); // your existing method
+            var userIdStr = GetUserIdFromToken(token); 
             if (!int.TryParse(userIdStr, out var userId))
                 return Unauthorized("Invalid user id in token.");
 

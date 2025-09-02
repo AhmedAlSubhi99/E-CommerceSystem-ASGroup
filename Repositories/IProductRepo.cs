@@ -8,6 +8,8 @@ namespace E_CommerceSystem.Repositories
         IEnumerable<Product> GetAllProducts();
         Product GetProductById(int pid);
         void UpdateProduct(Product product);
-        Product GetProductByName(string productName);
+        Product? GetProductByName(string productName);
+        Task<Product?> GetByIdAsync(int id, CancellationToken ct = default);
+        Task UpdateAsync(Product product, CancellationToken ct = default);
     }
 }

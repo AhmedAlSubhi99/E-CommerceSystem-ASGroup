@@ -1,5 +1,7 @@
 ﻿using E_CommerceSystem.Models;
-using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore; 
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace E_CommerceSystem.Repositories
 {
@@ -11,17 +13,8 @@ namespace E_CommerceSystem.Repositories
             _context = context;
         }
 
-        public IEnumerable<Product> GetAllProducts()
-        {
-            try
-            {
-                return _context.Products.ToList();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
+        public IEnumerable<Product> GetAllProducts() => _context.Products.ToList();
+
 
         public Product GetProductById(int pid)
         {
@@ -78,6 +71,18 @@ namespace E_CommerceSystem.Repositories
                 throw new InvalidOperationException($"Database error: {ex.Message}");
             }
            
+        }
+
+        public async Task<Product?> GetByIdAsync(int id, CancellationToken ct = default)
+        {
+            // No AsNoTracking so entity stays tracked for updates
+            return await _context.Products.FirstOrDefaultAsync(p => p.PID == id, ct);
+        }
+
+        public async Task UpdateAsync(Product product, CancellationToken ct = default)
+        {
+            _context.Products.Update(product);
+            await _context.SaveChangesAsync(ct);
         }
     }
 }
