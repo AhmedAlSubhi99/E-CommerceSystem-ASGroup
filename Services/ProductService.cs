@@ -10,10 +10,7 @@ namespace E_CommerceSystem.Services
     {
         private readonly IProductRepo _productRepo;
 
-        public ProductService(IProductRepo productRepo)
-        {
-            _productRepo = productRepo;
-        }
+
         private readonly IMapper _mapper;
 
         public ProductService(IProductRepo productRepo, IMapper mapper)
