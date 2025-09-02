@@ -94,21 +94,21 @@ The system uses the following relationships:
 git clone https://github.com/AhmedAlSubhi99/E-CommerceSystem.git
 cd E-CommerceSystem
 
-
-###2. Configure Database
+```
+### 2. Configure Database
 Update appsettings.json:
 "ConnectionStrings": {
   "DefaultConnection": "Server=.;Database=ECommerceDB;Trusted_Connection=True;TrustServerCertificate=True;"}
 
-###3. Apply Migrations
+### 3. Apply Migrations
 update-database
 
-Open Swagger docs:
-👉 https://localhost:5001/swagger
+## Open Swagger docs:
+-👉 https://localhost:5001/swagger
 
 ---
 
-##🌐 API Information
+## 🌐 API Information
 -User
 POST /api/User/Register → create new user
 
@@ -147,7 +147,7 @@ PUT /api/Review/UpdateReview?ReviewId=1
 
 DELETE /api/Review/DeleteReview/{id}
 
-##🧭 Sample API Workflow (End-to-End)
+## 🧭 Sample API Workflow (End-to-End)
 This shows a typical customer journey with example requests.
 You can test the same inside Swagger.
 
@@ -188,4 +188,4 @@ POST /api/Review/AddReview?pid=1
 Authorization: Bearer <JWT>
 { "rating": 5, "comment": "Excellent quality and fast shipping!" }
 
-##👉 Narrative (non-technical): You sign up, log in, get a secure token, then browse products, place an order, and finally leave a review — just like any real online shop.
+## 👉 Narrative (non-technical): You sign up, log in, get a secure token, then browse products, place an order, and finally leave a review — just like any real online shop.
