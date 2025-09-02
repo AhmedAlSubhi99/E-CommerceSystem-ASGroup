@@ -25,6 +25,9 @@ namespace E_CommerceSystem
 
             builder.Services.AddScoped<IProductRepo, ProductRepo>();
             builder.Services.AddScoped<IProductService, ProductService>();
+            builder.Services.Configure<FormOptions>(opt => {
+                opt.MultipartBodyLengthLimit = 50L * 1024 * 1024; // 5 MB
+            });
 
             builder.Services.AddScoped<IOrderProductsRepo, OrderProductsRepo>();
             builder.Services.AddScoped<IOrderProductsService, OrderProductsService>();

@@ -9,6 +9,8 @@ namespace E_CommerceSystem.Services
         Product GetProductById(int pid);
         void UpdateProduct(Product product);
         Product GetProductByName(string productName);
+        Task<string> UpdateImageAsync(int productId, IFormFile imageFile, CancellationToken ct = default);
+
         (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(
     int pageNumber = 1,
     int pageSize = 20,
