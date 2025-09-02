@@ -7,7 +7,7 @@ namespace E_CommerceSystem.Repositories
         void AddOrder(Order order);
         void DeleteOrder(int oid);
         IEnumerable<Order> GetAllOrders();
-        Order GetOrderById(int oid);
+        Order? GetOrderById(int oid);
         void UpdateOrder(Order order);
         IEnumerable<Order> GetOrderByUserId(int uid);
         Task<Order?> GetOrderWithDetailsAsync(int orderId);

@@ -79,5 +79,14 @@ namespace E_CommerceSystem.Repositories
             }
            
         }
+        public void Update(Product product)
+        {
+            _context.Products.Update(product);
+        }
+
+        public int SaveChanges()
+        {
+            return _context.SaveChanges();
+        }
     }
 }

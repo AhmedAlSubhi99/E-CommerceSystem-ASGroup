@@ -68,11 +68,12 @@ public class MappingProfile : Profile
             .ForMember(d => d.Total, m => m.MapFrom(s => s.OrderProducts.Sum(op => op.Quantity * op.product.Price)));
 
 
-        CreateMap<Order, OrderDTO>()
-       .ForMember(d => d.Status, opt => opt.MapFrom(s => s.Status.ToString()));
+        CreateMap<Order, OrdersOutputDTO>()
+      .ForMember(d => d.Status, opt => opt.MapFrom(s => s.Status.ToString()));
 
         CreateMap<UpdateOrderStatusDTO, Order>()
-            .ForMember(d => d.Status, opt => opt.MapFrom(s => Enum.Parse<OrderStatus>(s.Status, true)))
-            .ForAllOtherMembers(opt => opt.Ignore());
+            .ForMember(d => d.Status, opt =>
+                opt.MapFrom(s => Enum.Parse<OrderStatus>(s.Status, true)));
+
     }
 }

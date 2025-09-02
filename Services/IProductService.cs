@@ -15,5 +15,9 @@ namespace E_CommerceSystem.Services
     string? name = null,
     decimal? minPrice = null,
     decimal? maxPrice = null);
+        void IncrementStock(int productId, int quantity);
+
+        
+
     }
 }

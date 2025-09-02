@@ -33,5 +33,7 @@ namespace E_CommerceSystem.Services
 
         // Cancel an order (owner or admin). Restores stock. Returns (ok, message).
         Task<(bool ok, string message)> CancelOrderAsync(int orderId, int userId, bool isAdmin);
+
+        OrderDTO SetStatus(int orderId, OrderStatus newStatus, int actorUserId, bool isAdminOrManager);
     }
 }

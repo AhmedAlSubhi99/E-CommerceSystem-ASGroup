@@ -111,22 +111,70 @@ namespace E_CommerceSystem.Controllers
         {
             return Ok(summaryService.GetSummaries(pageNumber, pageSize));
         }
+
+        [Authorize]
         [HttpPost("{orderId:int}/Cancel")]
-        public async Task<IActionResult> Cancel(int orderId)
+        public IActionResult Cancel(int orderId)
         {
-            // You already decode JWT elsewhere; reuse your helper.
             var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            var userIdStr = GetUserIdFromToken(token); // your existing method
+            var userIdStr = GetUserIdFromToken(token);
             if (!int.TryParse(userIdStr, out var userId))
                 return Unauthorized("Invalid user id in token.");
 
-            var isAdmin = User.IsInRole("admin"); // works with [Authorize] + roles in JWT
+            var isAdmin = User.IsInRole("admin");
 
-            var (ok, message) = await _orderService.CancelOrderAsync(orderId, userId, isAdmin);
-            if (!ok) return BadRequest(message);
-
-            return Ok(message);
+            try
+            {
+                var updated = _orderService.SetStatus(orderId, OrderStatus.Cancelled, userId, isAdmin);
+                return Ok(updated);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
+        [Authorize]
+        [HttpPatch("{orderId:int}/status")]
+        public IActionResult UpdateStatus(int orderId, [FromBody] UpdateOrderStatusDTO dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
+                return BadRequest("Status is required.");
+
+            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var userIdStr = GetUserIdFromToken(token);
+            if (!int.TryParse(userIdStr, out var userId))
+                return Unauthorized("Invalid user id in token.");
+
+            var isAdmin = User.IsInRole("admin") || User.IsInRole("manager");
+
+            try
+            {
+                var updated = _orderService.SetStatus(orderId, Enum.Parse<OrderStatus>(dto.Status, true), userId, isAdmin);
+                return Ok(updated);
+            }
+            catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize(Roles = "admin,manager")]
+        [HttpPost("{orderId:int}/Pay")]
+        public IActionResult MarkPaid(int orderId) =>
+            Ok(_orderService.SetStatus(orderId, OrderStatus.Paid, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), true));
+
+        [Authorize(Roles = "admin,manager")]
+        [HttpPost("{orderId:int}/Ship")]
+        public IActionResult MarkShipped(int orderId) =>
+            Ok(_orderService.SetStatus(orderId, OrderStatus.Shipped, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), true));
+
+        [Authorize(Roles = "admin,manager")]
+        [HttpPost("{orderId:int}/Deliver")]
+        public IActionResult MarkDelivered(int orderId) =>
+            Ok(_orderService.SetStatus(orderId, OrderStatus.Delivered, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), true));
+
+        [Authorize]
+        [HttpPost("{orderId:int}/Cancel")]
+        public IActionResult cancel(int orderId) =>
+            Ok(_orderService.SetStatus(orderId, OrderStatus.Cancelled, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), User.IsInRole("admin")));
     }
 }

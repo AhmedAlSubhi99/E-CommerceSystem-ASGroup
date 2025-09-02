@@ -22,55 +22,42 @@ namespace E_CommerceSystem
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<User>()
-                        .HasIndex(u => u.Email)
-                        .IsUnique();
-            // One Category -> Many Products
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // One Supplier -> Many Products
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Supplier)
                 .WithMany(s => s.Products)
                 .HasForeignKey(p => p.SupplierId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Order>(e =>
-            {
-                e.Property(o => o.Status)
-                 .HasConversion<string>()
-                 .HasMaxLength(50)
-                 .IsRequired();
-                e.Property(o => o.TotalAmount).HasPrecision(18, 2);
-            });
-
-            // If Product has a decimal price, it’s good to fix its precision too ... 
+            // Product
             modelBuilder.Entity<Product>(e =>
             {
                 e.Property(p => p.Price).HasPrecision(18, 2);
                 e.Property(p => p.OverallRating).HasPrecision(18, 2);
+                e.Property(p => p.StockQuantity).HasDefaultValue(0);
             });
+
+            // Order
             modelBuilder.Entity<Order>(e =>
             {
                 e.Property(o => o.Status)
-                 .HasConversion<string>()                 // store as nvarchar
-                 .HasMaxLength(20)
-                 .HasDefaultValue(OrderStatus.Pending);
+                    .HasConversion<string>()
+                    .HasMaxLength(50)
+                    .HasDefaultValue(OrderStatus.Pending)
+                    .IsRequired();
 
-                e.Property(o => o.TotalAmount)
-                 .HasPrecision(18, 2);                    // (fixes your EF warning)
-
+                e.Property(o => o.TotalAmount).HasPrecision(18, 2);
                 e.HasIndex(o => o.Status);
             });
-
-            modelBuilder.Entity<Product>(e =>
-            {
-                e.Property(p => p.OverallRating).HasPrecision(4, 2); // fixes the other EF warning
-                e.Property(p => p.Price).HasPrecision(18, 2);
-            });
         }
+
     }
 }

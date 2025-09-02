@@ -110,6 +110,16 @@ namespace E_CommerceSystem.Services
             var items = _mapper.Map<IEnumerable<ProductDTO>>(page);
             return (items, total);
         }
+        public void IncrementStock(int productId, int quantity)
+        {
+            var p = _productRepo.GetProductById(productId)
+                    ?? throw new KeyNotFoundException($"Product {productId} not found.");
+
+            p.StockQuantity += quantity;
+
+            _productRepo.Update(p);
+            _productRepo.SaveChanges();
+        }
 
     }
 }

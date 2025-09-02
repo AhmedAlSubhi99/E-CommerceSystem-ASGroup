@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +25,61 @@ namespace E_CommerceSystem.Services
             _orderProductsService = orderProductsService;
             _ctx = ctx;
             _mapper = mapper;
+        }
+        private static bool IsValidTransition(OrderStatus from, OrderStatus to)
+        {
+            return (from, to) switch
+            {
+                (OrderStatus.Pending, OrderStatus.Paid) => true,
+                (OrderStatus.Pending, OrderStatus.Cancelled) => true,
+                (OrderStatus.Paid, OrderStatus.Shipped) => true,
+                (OrderStatus.Shipped, OrderStatus.Delivered) => true,
+                // Disallow regressions & skipping critical steps
+                _ => false
+            };
+        }
+        public OrderDTO SetStatus(int orderId, OrderStatus newStatus, int actorUserId, bool isAdminOrManager)
+        {
+            var order = _orderRepo.GetOrderById(orderId)
+                        ?? throw new KeyNotFoundException($"Order {orderId} not found.");
+
+            // Authorization rules:
+            // - Customer can cancel only if it's their order and still Pending.
+            // - Admin/Manager can perform any allowed forward transition.
+            if (!isAdminOrManager)
+            {
+                if (newStatus != OrderStatus.Cancelled ||
+                    order.UID != actorUserId ||
+                    order.Status != OrderStatus.Pending)
+                {
+                    throw new UnauthorizedAccessException("You are not allowed to change this order status.");
+                }
+            }
+
+            if (!IsValidTransition(order.Status, newStatus))
+                throw new InvalidOperationException($"Invalid status transition {order.Status} → {newStatus}.");
+
+            // If cancelling: (optional) restore stock
+            if (newStatus == OrderStatus.Cancelled)
+            {
+                var lines = _orderProductsService.GetOrdersByOrderId(order.OID);
+                foreach (var l in lines)
+                {
+                    var product = _productService.GetProductById(l.PID);
+                    if (product != null)
+                    {
+                        product.Stock += l.Quantity;
+                        _productService.UpdateProduct(product);
+                    }
+                }
+            }
+
+            order.Status = newStatus;
+            order.StatusUpdatedAtUtc = DateTime.UtcNow;
+            _orderRepo.UpdateOrder(order);
+            _orderRepo.SaveChangesAsync();
+
+            return _mapper.Map<OrderDTO>(order);
         }
 
         // Fetches ALL order lines (OrderProducts) for a given user
