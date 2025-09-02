@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 
@@ -23,113 +23,103 @@ namespace E_CommerceSystem.Services
             _mapper = mapper;
         }
 
-        // get all orders for logged-in user (kept as entities; you can add a DTO variant below)
+        // Fetches ALL order lines (OrderProducts) for a given user
         public List<OrderProducts> GetAllOrders(int uid)
         {
-            var orders = _orderRepo.GetOrderByUserId(uid);
-            if (orders == null || !orders.Any())
-                throw new InvalidOperationException($"No orders found for user ID {uid}.");
-
+            var orders = _orderRepo.GetOrderByUserId(uid) ?? Enumerable.Empty<Order>();
             var allOrderProducts = new List<OrderProducts>();
+
             foreach (var order in orders)
             {
-                // if you add a WithProduct variant, prefer it:
-                var orderProducts = _orderProductsService.GetOrdersByOrderId(order.OID);
-                if (orderProducts != null)
-                    allOrderProducts.AddRange(orderProducts);
+                var lines = _orderProductsService.GetOrdersByOrderId(order.OID);
+                if (lines != null) allOrderProducts.AddRange(lines);
             }
+
             return allOrderProducts;
         }
 
-        // convenience overload that returns DTOs
         public IEnumerable<OrdersOutputDTO> GetAllOrdersDto(int uid)
         {
-            var entities = GetAllOrders(uid);
-            return _mapper.Map<List<OrdersOutputDTO>>(entities);
+            var lines = GetAllOrders(uid); // List<OrderProducts>
+            return _mapper.Map<List<OrdersOutputDTO>>(lines);
         }
 
-        // get order by order id for the login user -> now using AutoMapper
         public IEnumerable<OrdersOutputDTO> GetOrderById(int oid, int uid)
         {
             var order = _orderRepo.GetOrderById(oid);
-            if (order == null)
-                throw new InvalidOperationException("No orders found.");
-
-            if (order.UID != uid)
+            if (order == null || order.UID != uid)
                 return Enumerable.Empty<OrdersOutputDTO>();
 
-            // Recommended: use the WithProduct method so Product & Order are loaded
-            var lines = _orderProductsService.GetByOrderIdWithProduct(oid);
+            // Prefer the repo/service that loads Product with the line if you have it
+            var linesWithProducts = _orderProductsService.GetByOrderIdWithProduct(oid)
+                                   ?? _orderProductsService.GetOrdersByOrderId(oid)
+                                   ?? Enumerable.Empty<OrderProducts>();
 
-            // One-line mapping to your output DTO (computed fields come from MappingProfile)
-            var items = _mapper.Map<List<OrdersOutputDTO>>(lines);
-            return items;
+            return _mapper.Map<List<OrdersOutputDTO>>(linesWithProducts);
         }
 
         public IEnumerable<Order> GetOrderByUserId(int uid)
         {
-            var order = _orderRepo.GetOrderByUserId(uid);
-            if (order == null)
-                throw new KeyNotFoundException($"order with user ID {uid} not found.");
-            return order;
+            var orders = _orderRepo.GetOrderByUserId(uid);
+            if (orders == null)
+                throw new KeyNotFoundException($"Orders for user {uid} not found.");
+            return orders;
         }
+
+        public Order? GetOrderEntityById(int oid) => _orderRepo.GetOrderById(oid);
 
         public void DeleteOrder(int oid)
         {
-            var order = _orderRepo.GetOrderById(oid);
-            if (order == null)
-                throw new KeyNotFoundException($"order with ID {oid} not found.");
-
+            var order = _orderRepo.GetOrderById(oid)
+                        ?? throw new KeyNotFoundException($"Order {oid} not found.");
             _orderRepo.DeleteOrder(oid);
-
-            // FIX: don't throw on success
-            // consider returning void or a boolean
         }
 
         public void AddOrder(Order order) => _orderRepo.AddOrder(order);
         public void UpdateOrder(Order order) => _orderRepo.UpdateOrder(order);
 
-        // Places an order (kept mostly as-is; mapping can't replace the lookups)
         public void PlaceOrder(List<OrderItemDTO> items, int uid)
         {
-            Product existingProduct = null;
-            decimal totalOrderPrice = 0;
+            if (items == null || items.Count == 0)
+                throw new ArgumentException("Order items cannot be empty.", nameof(items));
 
-            // Validate first
+            decimal totalOrderPrice = 0m;
+
+            // 1) Validate stock
             foreach (var item in items)
             {
-                existingProduct = _productService.GetProductByName(item.ProductName)
-                    ?? throw new Exception($"{item.ProductName} not Found");
-
-                if (existingProduct.Stock < item.Quantity)
+                var product = _productService.GetProductByName(item.ProductName)
+                              ?? throw new Exception($"{item.ProductName} not found");
+                if (product.Stock < item.Quantity)
                     throw new Exception($"{item.ProductName} is out of stock");
             }
 
-            // Create order
-            var order = new Order { UID = uid, OrderDate = DateTime.Now, TotalAmount = 0 };
+            // 2) Create order shell
+            var order = new Order { UID = uid, OrderDate = DateTime.Now, TotalAmount = 0m };
             AddOrder(order);
 
-            // Process lines
+            // 3) Add lines + update stock
             foreach (var item in items)
             {
-                existingProduct = _productService.GetProductByName(item.ProductName)!;
+                var product = _productService.GetProductByName(item.ProductName)!;
 
-                var totalPrice = item.Quantity * existingProduct.Price;
-                totalOrderPrice += totalPrice;
+                var lineTotal = item.Quantity * product.Price;
+                totalOrderPrice += lineTotal;
 
-                existingProduct.Stock -= item.Quantity;
+                product.Stock -= item.Quantity;
 
                 var orderProducts = new OrderProducts
                 {
                     OID = order.OID,
-                    PID = existingProduct.PID,
+                    PID = product.PID,
                     Quantity = item.Quantity
                 };
 
                 _orderProductsService.AddOrderProducts(orderProducts);
-                _productService.UpdateProduct(existingProduct);
+                _productService.UpdateProduct(product);
             }
 
+            // 4) Finalize order total
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
         }

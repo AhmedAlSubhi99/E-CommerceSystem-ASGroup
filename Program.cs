@@ -31,6 +31,9 @@ namespace E_CommerceSystem
             builder.Services.AddScoped<IOrderRepo, OrderRepo>();
             builder.Services.AddScoped<IOrderService, OrderService>();
 
+            builder.Services.AddScoped<IOrderSummaryService, OrderSummaryService>();
+
+
             builder.Services.AddScoped<IReviewRepo, ReviewRepo>();
             builder.Services.AddScoped<IReviewService, ReviewService>();
 

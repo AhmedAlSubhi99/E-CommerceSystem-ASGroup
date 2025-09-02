@@ -1,18 +1,31 @@
-﻿using E_CommerceSystem.Models;
+using E_CommerceSystem.Models;
 using System.Collections.Generic;
 
 namespace E_CommerceSystem.Services
 {
     public interface IOrderService
     {
+        // Returns user’s orders with their products (existing contract)
         List<OrderProducts> GetAllOrders(int uid);
-        IEnumerable<OrdersOutputDTO> GetOrderById(int oid, int uid);
-        IEnumerable<Order> GetOrderByUserId(int uid);
-        IEnumerable<OrdersOutputDTO> GetAllOrdersDto(int uid);
-        void DeleteOrder(int oid);
 
+        // Single-order DTO projection (typo fixed to DTO)
+        IEnumerable<OrdersOutputDTO> GetOrderById(int oid, int uid);
+
+        // Raw Order entities for a user (existing contract)
+        IEnumerable<Order> GetOrderByUserId(int uid);
+
+        // All orders for a user as DTOs (existing contract)
+        IEnumerable<OrdersOutputDTO> GetAllOrdersDto(int uid);
+
+        // Entity fetch (needed by OrderSummaryService)
+        Order? GetOrderEntityById(int oid);
+
+        // Mutations
         void AddOrder(Order order);
         void UpdateOrder(Order order);
+        void DeleteOrder(int oid);
+
+        // Place order (keep one signature)
         void PlaceOrder(List<OrderItemDTO> items, int uid);
     }
 }

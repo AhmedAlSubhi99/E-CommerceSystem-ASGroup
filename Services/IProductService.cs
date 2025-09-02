@@ -9,5 +9,11 @@ namespace E_CommerceSystem.Services
         Product GetProductById(int pid);
         void UpdateProduct(Product product);
         Product GetProductByName(string productName);
+        (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(
+    int pageNumber = 1,
+    int pageSize = 20,
+    string? name = null,
+    decimal? minPrice = null,
+    decimal? maxPrice = null);
     }
 }
