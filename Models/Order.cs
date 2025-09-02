@@ -19,9 +19,13 @@ namespace E_CommerceSystem.Models
 
         [JsonIgnore]
         public virtual ICollection <OrderProducts> OrderProducts { get; set; }
+
+        [Required]
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
-        
+        public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+        public DateTime? StatusUpdatedAtUtc { get; set; }
+
 
 
     }

@@ -53,6 +53,24 @@ namespace E_CommerceSystem
                 e.Property(p => p.Price).HasPrecision(18, 2);
                 e.Property(p => p.OverallRating).HasPrecision(18, 2);
             });
+            modelBuilder.Entity<Order>(e =>
+            {
+                e.Property(o => o.Status)
+                 .HasConversion<string>()                 // store as nvarchar
+                 .HasMaxLength(20)
+                 .HasDefaultValue(OrderStatus.Pending);
+
+                e.Property(o => o.TotalAmount)
+                 .HasPrecision(18, 2);                    // (fixes your EF warning)
+
+                e.HasIndex(o => o.Status);
+            });
+
+            modelBuilder.Entity<Product>(e =>
+            {
+                e.Property(p => p.OverallRating).HasPrecision(4, 2); // fixes the other EF warning
+                e.Property(p => p.Price).HasPrecision(18, 2);
+            });
         }
     }
 }

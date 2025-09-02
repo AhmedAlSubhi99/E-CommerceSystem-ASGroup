@@ -10,4 +10,18 @@
 
         public int Quantity { get; set; }
     }
+    public class OrderDTO
+    {
+        public int OrderId { get; set; }
+        public int UserId { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string Status { get; set; } = "Pending"; 
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime? StatusUpdatedAtUtc { get; set; }
+    }
+
+    public class UpdateOrderStatusDTO
+    {
+        public string Status { get; set; } = default!;
+    }
 }
