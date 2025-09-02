@@ -14,25 +14,25 @@ It manages **users, products, orders, and reviews** in a secure and efficient wa
 
 ## 👨‍💻 Project Structure (For Developers)
 
-E-CommerceSystem/
-
-┣ Controllers/ # API endpoints (Users, Products, Orders, Reviews)
-
-┣ DTOs/ # Data Transfer Objects for input/output
-
-┣ Models/ # Entity classes (User, Product, Order, OrderProducts, Review)
-
-┣ Repositories/ # Repository pattern for database access
-
-┣ Services/ # Business logic (Auth, Orders, Products, Reviews)
-
-┣ Data/ # ApplicationDbContext, EF migrations
-
-┣ Middleware/ # Error handling & auth pipeline
-
-┣ Program.cs # Entry point & service configuration
-
-┣ appsettings.json # DB connection & JWT configuration
+	E-CommerceSystem/
+	|
+	┣ Controllers/ # API endpoints (Users, Products, Orders, Reviews)
+	|
+	┣ DTOs/ # Data Transfer Objects for input/output
+	|
+	┣ Models/ # Entity classes (User, Product, Order, OrderProducts, Review)
+	|
+	┣ Repositories/ # Repository pattern for database access
+	|
+	┣ Services/ # Business logic (Auth, Orders, Products, Reviews)
+	|
+	┣ Data/ # ApplicationDbContext, EF migrations
+	|
+	┣ Middleware/ # Error handling & auth pipeline
+	|
+	┣ Program.cs # Entry point & service configuration
+	|
+	┣ appsettings.json # DB connection & JWT configuration
 
 
 ---
@@ -116,45 +116,48 @@ update-database
 
 ### User
 
-- POST /api/User/Register → create new user
+	- POST /api/User/Register → create new user
 
-- POST /api/User/Login → login and get JWT token
+	- POST /api/User/Login → login and get JWT token
 
-- GET /api/User/GetUserById/{id} → get user details
+	- GET /api/User/GetUserById/{id} → get user details
 
 ### Product
 
-- POST /api/Product/AddNewProduct
+	- POST /api/Product/AddNewProduct
 
-- GET /api/Product/GetAllProducts?pageNumber=1&pageSize=10
+	- GET /api/Product/GetAllProducts?pageNumber=1&pageSize=10
 
-- GET /api/Product/GetProductById/{id}
+	- GET /api/Product/GetProductById/{id}
 
-- PUT /api/Product/UpdateProduct?productId=1
+	- PUT /api/Product/UpdateProduct?productId=1
 
-- DELETE /api/Product/DeleteProduct/{id}
+	- DELETE /api/Product/DeleteProduct/{id}
 
 ### Order
 
-- POST /api/Order/PlaceOrder
-Example body:
+	- POST /api/Order/PlaceOrder
+	- Example body:
 [
   { "productName": "Laptop", "quantity": 1 },
   { "productName": "Mouse", "quantity": 2 }
 ]
-- GET /api/Order/GetAllOrders
 
-- GET /api/Order/GetOrderById/{id}
+	- GET /api/Order/GetAllOrders
+
+	- GET /api/Order/GetOrderById/{id}
 
 ### Review
 
-- POST /api/Review/AddReview?pid=1
+	- POST /api/Review/AddReview?pid=1
 
-- GET /api/Review/GetAllReviews?productId=1&pageNumber=1&pageSize=5
+	- GET /api/Review/GetAllReviews?productId=1&pageNumber=1&pageSize=5
 
-- PUT /api/Review/UpdateReview?ReviewId=1
+	- PUT /api/Review/UpdateReview?ReviewId=1
 
-- DELETE /api/Review/DeleteReview/{id}
+	- DELETE /api/Review/DeleteReview/{id}
+
+---
 
 ## 🧭 Sample API Workflow (End-to-End)
 This shows a typical customer journey with example requests.
@@ -162,7 +165,7 @@ You can test the same inside Swagger.
 
 ### 1) Register a new user
 
-- POST /api/User/Register
+	- POST /api/User/Register
 {
   "uName": "Samir",
   "email": "samir@example.com",
@@ -173,12 +176,16 @@ You can test the same inside Swagger.
 
 ### 2) Login → Get a JWT
 
-- POST /api/User/Login
+	- POST /api/User/Login
+
 { "email": "samir@example.com", "password": "P@ssw0rd!2025" }
-Response: a JWT token
+
+	Response: a JWT token
 
 ### 3) Add a product
-- POST /api/Product/AddNewProduct
+
+	- POST /api/Product/AddNewProduct
+
 Authorization: Bearer <JWT>
 {
   "productName": "Gaming Mouse",
@@ -186,17 +193,21 @@ Authorization: Bearer <JWT>
   "price": 19.99,
   "stock": 50
 }
+
 ### 4) Place an order
 
-- POST /api/Order/PlaceOrder
-Authorization: Bearer <JWT>
+	- POST /api/Order/PlaceOrder
+	Authorization: 
+ Bearer <JWT>
 [
   { "productName": "Gaming Mouse", "quantity": 2 }
 ]
 
 ### 5) Add a review
-- POST /api/Review/AddReview?pid=1
-Authorization: Bearer <JWT>
+
+	- POST /api/Review/AddReview?pid=1
+Authorization:
+ Bearer <JWT>
 { "rating": 5, "comment": "Excellent quality and fast shipping!" }
 
 ## 👉 Narrative (non-technical): You sign up, log in, get a secure token, then browse products, place an order, and finally leave a review — just like any real online shop.
