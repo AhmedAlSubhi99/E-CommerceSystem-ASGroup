@@ -9,17 +9,17 @@ namespace E_CommerceSystem.Models
         [Key] 
         public int OID { get; set; }
 
-        public DateTime OrderDate { get; set; }
+        public DateTime OrderDate { get; set; } = DateTime.UtcNow;
 
         public decimal TotalAmount { get; set; }
 
         [ForeignKey("user")]
         public int UID { get; set; }
-        public User user { get; set; }
+        public virtual User? user { get; set; }
 
         [JsonIgnore]
         public virtual ICollection <OrderProducts> OrderProducts { get; set; }
-        public string? Status { get; set; } = "Pending";
+        public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
         
 

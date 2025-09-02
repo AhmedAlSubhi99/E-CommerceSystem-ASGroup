@@ -5,7 +5,7 @@
         public int OrderId { get; set; }
         public string? CustomerName { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string Status { get; set; } = "Pending";
+        public string? Status { get; set; } = "Pending";
         public List<OrderLineDTO> Lines { get; set; } = new();
         public decimal Subtotal { get; set; }
         public decimal Total { get; set; }

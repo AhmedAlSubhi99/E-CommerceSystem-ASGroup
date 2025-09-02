@@ -30,5 +30,8 @@ namespace E_CommerceSystem.Services
 
         // Place order (keep one signature)
         void PlaceOrder(List<OrderItemDTO> items, int uid);
+
+        // Cancel an order (owner or admin). Restores stock. Returns (ok, message).
+        Task<(bool ok, string message)> CancelOrderAsync(int orderId, int userId, bool isAdmin);
     }
 }

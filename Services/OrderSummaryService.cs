@@ -30,41 +30,16 @@ namespace E_CommerceSystem.Services
 
         public OrderSummaryDTO GetSummaryByOrderId(int orderId)
         {
-            var order = _orders.GetOrderEntityById(orderId)
-                       ?? throw new KeyNotFoundException($"Order {orderId} not found.");
+            var order = _ctx.Orders
+                .Include(o => o.OrderProducts)
+                   .ThenInclude(op => op.product)
+                .Include(o => o.user)
+                .FirstOrDefault(o => o.OID == orderId);
 
-            var lines = _orderProducts.GetOrdersByOrderId(orderId);
-            var lineDtos = new List<OrderLineDTO>();
-            decimal subtotal = 0m;
+            if (order == null)
+                throw new KeyNotFoundException($"Order {orderId} not found.");
 
-            foreach (var l in lines)
-            {
-                var p = _products.GetProductById(l.PID)
-                        ?? throw new KeyNotFoundException($"Product {l.PID} not found.");
-
-                var dto = new OrderLineDTO
-                {
-                    ProductId = p.PID,
-                    ProductName = p.ProductName,
-                    Quantity = l.Quantity,
-                    UnitPrice = p.Price
-                };
-                subtotal += dto.LineTotal;
-                lineDtos.Add(dto);
-            }
-
-            var total = subtotal;
-
-            return new OrderSummaryDTO
-            {
-                OrderId = order.OID,
-                CustomerName = _users.GetUserById(order.UID)?.UName,
-                CreatedAt = order.OrderDate,
-                Status = order.Status ?? "Pending",
-                Lines = lineDtos,
-                Subtotal = subtotal,
-                Total = total
-            };
+            return _mapper.Map<OrderSummaryDTO>(order);
         }
 
         public IEnumerable<OrderSummaryDTO> GetSummaries(int pageNumber = 1, int pageSize = 20)

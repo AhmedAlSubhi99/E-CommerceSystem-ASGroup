@@ -10,5 +10,7 @@ namespace E_CommerceSystem.Repositories
         Order GetOrderById(int oid);
         void UpdateOrder(Order order);
         IEnumerable<Order> GetOrderByUserId(int uid);
+        Task<Order?> GetOrderWithDetailsAsync(int orderId);
+        Task SaveChangesAsync();
     }
 }

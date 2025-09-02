@@ -1,6 +1,7 @@
 using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Services
 {
@@ -9,17 +10,20 @@ namespace E_CommerceSystem.Services
         private readonly IOrderRepo _orderRepo;
         private readonly IProductService _productService;
         private readonly IOrderProductsService _orderProductsService;
+        private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
         public OrderService(
             IOrderRepo orderRepo,
             IProductService productService,
-            IOrderProductsService orderProductsService,
+            IOrderProductsService orderProductsService, 
+            ApplicationDbContext ctx,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _productService = productService;
             _orderProductsService = orderProductsService;
+            _ctx = ctx;
             _mapper = mapper;
         }
 
@@ -101,11 +105,11 @@ namespace E_CommerceSystem.Services
                     throw new Exception($"{item.ProductName} is out of stock");
             }
 
-            // 2) Create order shell
+            // Create order shell
             var order = new Order { UID = uid, OrderDate = DateTime.Now, TotalAmount = 0m };
             AddOrder(order);
 
-            // 3) Add lines + update stock
+            // Add lines + update stock
             foreach (var item in items)
             {
                 var product = _productService.GetProductByName(item.ProductName)!;
@@ -126,9 +130,63 @@ namespace E_CommerceSystem.Services
                 _productService.UpdateProduct(product);
             }
 
-            // 4) Finalize order total
+            //  Finalize order total
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
+        }
+        public async Task<(bool ok, string message)> CancelOrderAsync(int orderId, int userId, bool isAdmin)
+        {
+            var order = await _orderRepo.GetOrderWithDetailsAsync(orderId);
+            if (order == null) return (false, "Order not found.");
+
+            // Owner or Admin only
+            var ownerId = order.UID; 
+            if (!isAdmin && ownerId != userId)
+                return (false, "You are not allowed to cancel this order.");
+
+            // Allowed statuses to cancel
+            if (order.Status == OrderStatus.Cancelled)
+                return (false, "Order is already cancelled.");
+
+            if (order.Status == OrderStatus.Shipped || order.Status == OrderStatus.Delivered)
+                return (false, $"Cannot cancel an order in '{order.Status}' status.");
+
+            // if Paid is allowed to cancel, we proceed; otherwise block:
+            if (order.Status == OrderStatus.Paid) return (false, "Paid orders cannot be cancelled.");
+
+            await using var tx = await _ctx.Database.BeginTransactionAsync();
+
+            try
+            {
+                // restore stock for each order line
+                foreach (var line in order.OrderProducts)
+                {
+                    var product = line.product;
+                    if (product == null)
+                    {
+                        // load if not included (safety)
+                        product = await _ctx.Products.FirstOrDefaultAsync(p => p.PID == line.PID);
+                        if (product == null)
+                            return (false, $"Product {line.PID} not found for line restore.");
+                    }
+
+                    product.Stock += line.Quantity;
+                    _ctx.Products.Update(product);
+                }
+
+                order.Status = OrderStatus.Cancelled;
+                _ctx.Orders.Update(order);
+
+                await _ctx.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return (true, "Order cancelled and stock restored.");
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw; // will bubble to controller as 500; you can convert to (false,"...") if preferred
+            }
         }
     }
 }

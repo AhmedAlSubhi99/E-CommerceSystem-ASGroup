@@ -4,6 +4,7 @@ using E_CommerceSystem;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace E_CommerceSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250902154437_AddOrderStatusAndPrecision")]
+    partial class AddOrderStatusAndPrecision
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,7 +42,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("Categories", (string)null);
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Order", b =>
@@ -69,7 +72,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("UID");
 
-                    b.ToTable("Orders", (string)null);
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.OrderProducts", b =>
@@ -87,7 +90,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("PID");
 
-                    b.ToTable("OrderProducts", (string)null);
+                    b.ToTable("OrderProducts");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Product", b =>
@@ -103,9 +106,6 @@ namespace E_CommerceSystem.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("OverallRating")
@@ -132,7 +132,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Products");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Review", b =>
@@ -165,7 +165,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("UID");
 
-                    b.ToTable("Reviews", (string)null);
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Supplier", b =>
@@ -190,7 +190,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasKey("SupplierId");
 
-                    b.ToTable("Suppliers", (string)null);
+                    b.ToTable("Suppliers");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.User", b =>
@@ -229,7 +229,7 @@ namespace E_CommerceSystem.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Order", b =>
