@@ -1,6 +1,7 @@
 ﻿using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Controllers
 {
@@ -38,8 +39,15 @@ namespace E_CommerceSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var deleted = await _service.DeleteAsync(id);
-            return deleted ? NoContent() : NotFound();
+            try
+            {
+                var ok = await _service.DeleteAsync(id);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (DbUpdateException)
+            {
+                return Conflict("Cannot delete because products reference this record.");
+            }
         }
     }
 
