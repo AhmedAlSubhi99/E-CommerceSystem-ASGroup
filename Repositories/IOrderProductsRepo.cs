@@ -1,5 +1,6 @@
 ﻿using E_CommerceSystem.Models;
 
+
 namespace E_CommerceSystem.Repositories
 {
     public interface IOrderProductsRepo
@@ -7,5 +8,7 @@ namespace E_CommerceSystem.Repositories
         void AddOrderProducts(OrderProducts product);
         IEnumerable<OrderProducts> GetAllOrders();
         List<OrderProducts> GetOrdersByOrderId(int oid);
+        IList<OrderProducts> GetByOrderIdWithProduct(int orderId);
+
     }
 }

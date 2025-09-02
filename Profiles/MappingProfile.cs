@@ -32,8 +32,12 @@ public class MappingProfile : Profile
         // -----------------
         // Order 
         // -----------------
-        CreateMap<Order, OrdersOutputOTD>().ReverseMap();
-
+        CreateMap<Order, OrdersOutputDTO>().ReverseMap();
+        CreateMap<OrderProducts, OrdersOutputDTO>()
+            .ForMember(d => d.ProductName, opt => opt.MapFrom(s => s.product.ProductName))
+            .ForMember(d => d.Quantity, opt => opt.MapFrom(s => s.Quantity))
+            .ForMember(d => d.OrderDate, opt => opt.MapFrom(s => s.Order.OrderDate))
+            .ForMember(d => d.TotalAmount, opt => opt.MapFrom(s => s.Quantity * s.product.Price));
         // -----------------
         // OrderProduct 
         // -----------------
