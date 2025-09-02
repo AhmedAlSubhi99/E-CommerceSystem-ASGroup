@@ -24,6 +24,14 @@ namespace E_CommerceSystem.Models
         public int PID { get; set; }
         [JsonIgnore]
         public Product product { get; set; }
+
+        [JsonIgnore]
+        public decimal TotalPrice => Quantity * (product?.Price ?? 0);
+        [JsonIgnore]
+        public decimal UnitPrice => product?.Price ?? 0;
+
+
+
     }
 }
 

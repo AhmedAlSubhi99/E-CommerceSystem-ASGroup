@@ -1,4 +1,8 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
+using Microsoft.EntityFrameworkCore;
+using AutoMapper.QueryableExtensions;
+
 
 namespace E_CommerceSystem.Services
 {
@@ -8,16 +12,20 @@ namespace E_CommerceSystem.Services
         private readonly IOrderProductsService _orderProducts;
         private readonly IProductService _products;
         private readonly IUserService _users;
+        private readonly ApplicationDbContext _ctx;
+        private readonly IMapper _mapper;
 
         public OrderSummaryService(IOrderService orders,
                                    IOrderProductsService orderProducts,
                                    IProductService products,
-                                   IUserService users)
+                                   IUserService users, ApplicationDbContext ctx, IMapper mapper)
         {
             _orders = orders;
             _orderProducts = orderProducts;
             _products = products;
             _users = users;
+            _ctx = ctx;
+            _mapper = mapper;
         }
 
         public OrderSummaryDTO GetSummaryByOrderId(int orderId)
@@ -70,6 +78,25 @@ namespace E_CommerceSystem.Services
                 .Take(pageSize)
                 .Select(o => GetSummaryByOrderId(o.OID))
                 .ToList();
+        }
+        public async Task<List<OrderSummaryDTO>> GetUserOrderSummariesAsync(int userId)
+        {
+            return await _ctx.Orders
+                .AsNoTracking()
+                .Where(o => o.UID == userId)
+                .OrderByDescending(o => o.OrderDate)
+                // ensure navigations are available to the mapper
+                .ProjectTo<OrderSummaryDTO>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+        }
+
+        public async Task<OrderSummaryDTO?> GetOrderSummaryAsync(int orderId, int userId)
+        {
+            return await _ctx.Orders
+                .AsNoTracking()
+                .Where(o => o.OID == orderId && o.UID == userId)
+                .ProjectTo<OrderSummaryDTO>(_mapper.ConfigurationProvider)
+                .FirstOrDefaultAsync();
         }
     }
 }
