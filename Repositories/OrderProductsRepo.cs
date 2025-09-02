@@ -1,4 +1,5 @@
 ﻿using E_CommerceSystem.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Repositories
 {
@@ -45,6 +46,14 @@ namespace E_CommerceSystem.Repositories
             {
                 throw new InvalidOperationException($"Database error: {ex.Message}");
             }
+        }
+        public IList<OrderProducts> GetByOrderIdWithProduct(int orderId)
+        {
+            return _context.OrderProducts
+                .Include(op => op.product)
+                .Include(op => op.Order)
+                .Where(op => op.OID == orderId)
+                .ToList();
         }
     }
 }

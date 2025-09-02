@@ -1,4 +1,5 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,14 +9,16 @@ namespace E_CommerceSystem.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/[Controller]")]
-    public class OrderController: ControllerBase
+    [Route("api/[controller]")] // lower-case [controller] is fine
+    public class OrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
+        private readonly IMapper _mapper;
 
-        public OrderController(IOrderService orderService)
+        public OrderController(IOrderService orderService, IMapper mapper)
         {
             _orderService = orderService;
+            _mapper = mapper;
         }
 
         [HttpPost("PlaceOrder")]
@@ -24,95 +27,67 @@ namespace E_CommerceSystem.Controllers
             try
             {
                 if (items == null || !items.Any())
-                {
                     return BadRequest("Order items cannot be empty.");
-                }
 
-                // Retrieve the Authorization header from the request
                 var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-
-                // Decode the token to check user role
-                var userId= GetUserIdFromToken(token);
-
-                // Extract user ID 
+                var userId = GetUserIdFromToken(token);
                 int uid = int.Parse(userId);
 
                 _orderService.PlaceOrder(items, uid);
-
                 return Ok("Order placed successfully.");
             }
             catch (Exception ex)
             {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while placing order. {(ex.Message)}");
-
+                return StatusCode(500, $"An error occurred while placing the order. ({ex.Message})");
             }
-
         }
+
         [HttpGet("GetAllOrders")]
         public IActionResult GetAllOrders()
         {
             try
             {
-                // Retrieve the Authorization header from the request
                 var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-
-                // Decode the token to check user role
                 var userId = GetUserIdFromToken(token);
-
-                // Extract user ID 
                 int uid = int.Parse(userId);
-                
-                return Ok(_orderService.GetAllOrders(uid));
+
+                var entities = _orderService.GetAllOrders(uid);
+                var dtos = _mapper.Map<List<OrdersOutputDTO>>(entities);
+                return Ok(dtos);
             }
             catch (Exception ex)
             {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while retrieving products. {(ex.Message)}");
-
+                return StatusCode(500, $"An error occurred while retrieving orders. ({ex.Message})");
             }
         }
 
-        [HttpGet("GetOrderById/{OrderId}")]
-        public IActionResult GetOrderById(int OrderId)
+        [HttpGet("GetOrderById/{orderId:int}")]
+        public IActionResult GetOrderById(int orderId)
         {
             try
             {
-                // Retrieve the Authorization header from the request
                 var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-
-                // Decode the token to check user role
                 var userId = GetUserIdFromToken(token);
-
-                // Extract user ID 
                 int uid = int.Parse(userId);
 
-                return Ok(_orderService.GetOrderById(OrderId,uid));
+                var rows = _orderService.GetOrderById(orderId, uid); // returns IEnumerable<OrdersOutputDTO>
+                return Ok(rows);
             }
             catch (Exception ex)
             {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while retrieving products. {(ex.Message)}");
-
+                return StatusCode(500, $"An error occurred while retrieving orders. ({ex.Message})");
             }
         }
 
-        // Method to decode token to get user id
         private string? GetUserIdFromToken(string token)
         {
             var handler = new JwtSecurityTokenHandler();
-
             if (handler.CanReadToken(token))
             {
                 var jwtToken = handler.ReadJwtToken(token);
-
-                // Extract the 'sub' claim
                 var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "sub");
-
-
-                return (subClaim?.Value); // Return both values as a tuple
+                return subClaim?.Value;
             }
-
             throw new UnauthorizedAccessException("Invalid or unreadable token.");
         }
 
@@ -138,6 +113,4 @@ namespace E_CommerceSystem.Controllers
         }
 
     }
-
-
 }

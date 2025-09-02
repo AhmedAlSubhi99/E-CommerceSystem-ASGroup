@@ -1,10 +1,6 @@
-﻿using E_CommerceSystem.Models;
+using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Security.Cryptography;
 
 namespace E_CommerceSystem.Services
 {
@@ -13,161 +9,119 @@ namespace E_CommerceSystem.Services
         private readonly IOrderRepo _orderRepo;
         private readonly IProductService _productService;
         private readonly IOrderProductsService _orderProductsService;
+        private readonly IMapper _mapper;
 
-        public IEnumerable<Order> GetAllOrders() => _orderRepo.GetAllOrders();      // must return IEnumerable<Order>
-        public Order? GetOrderEntityById(int oid) => _orderRepo.GetOrderById(oid);  // returns Order
-
-        public OrderService(IOrderRepo orderRepo, IProductService productService, IOrderProductsService orderProductsService)
+        public OrderService(
+            IOrderRepo orderRepo,
+            IProductService productService,
+            IOrderProductsService orderProductsService,
+            IMapper mapper)
         {
             _orderRepo = orderRepo;
             _productService = productService;
             _orderProductsService = orderProductsService;
+            _mapper = mapper;
         }
 
-        //get all orders for login user
-        public List <OrderProducts> GetAllOrders(int uid)
+        // Fetches ALL order lines (OrderProducts) for a given user
+        public List<OrderProducts> GetAllOrders(int uid)
         {
-            var orders = _orderRepo.GetOrderByUserId(uid);
-            if (orders == null || !orders.Any())
-                throw new InvalidOperationException($"No orders found for user ID {uid}.");
-
-            // Collect all OrderProducts for all orders
+            var orders = _orderRepo.GetOrderByUserId(uid) ?? Enumerable.Empty<Order>();
             var allOrderProducts = new List<OrderProducts>();
 
             foreach (var order in orders)
             {
-                var orderProducts = _orderProductsService.GetOrdersByOrderId(order.OID);
-                if (orderProducts != null)
-                    allOrderProducts.AddRange(orderProducts);
+                var lines = _orderProductsService.GetOrdersByOrderId(order.OID);
+                if (lines != null) allOrderProducts.AddRange(lines);
             }
 
             return allOrderProducts;
-
         }
 
-        //get order by order id for the login user
-        public IEnumerable<OrdersOutputOTD> GetOrderById(int oid, int uid)
+        public IEnumerable<OrdersOutputDTO> GetAllOrdersDto(int uid)
         {
-            //list of items in the order 
-            List<OrdersOutputOTD> items = new List<OrdersOutputOTD>();
-            OrdersOutputOTD ordersOutputOTD = null;
+            var lines = GetAllOrders(uid); // List<OrderProducts>
+            return _mapper.Map<List<OrdersOutputDTO>>(lines);
+        }
 
-            
-            List<OrderProducts> products = null;
-            Product product = null;
-            string productName = string.Empty;
-
-            //get order 
+        public IEnumerable<OrdersOutputDTO> GetOrderById(int oid, int uid)
+        {
             var order = _orderRepo.GetOrderById(oid);
+            if (order == null || order.UID != uid)
+                return Enumerable.Empty<OrdersOutputDTO>();
 
-            if (order == null)
-                throw new InvalidOperationException($"No orders found .");
+            // Prefer the repo/service that loads Product with the line if you have it
+            var linesWithProducts = _orderProductsService.GetByOrderIdWithProduct(oid)
+                                   ?? _orderProductsService.GetOrdersByOrderId(oid)
+                                   ?? Enumerable.Empty<OrderProducts>();
 
-            //execute the products data in existing Product
-            if (order.UID == uid)
-            {
-                products = _orderProductsService.GetOrdersByOrderId(oid);
-                foreach (var p in products)
-                {
-                    product = _productService.GetProductById(p.PID);
-                    productName = product.ProductName;
-                    ordersOutputOTD = new OrdersOutputOTD
-                    {
-                        ProductName = productName,
-                        Quantity = p.Quantity,
-                        OrderDate = order.OrderDate,
-                        TotalAmount = p.Quantity * product.Price,
-                    };
-                    items.Add(ordersOutputOTD);
-                }
-            }
-   
-            return items;
-     
+            return _mapper.Map<List<OrdersOutputDTO>>(linesWithProducts);
         }
 
         public IEnumerable<Order> GetOrderByUserId(int uid)
         {
-            var order = _orderRepo.GetOrderByUserId(uid);
-            if (order == null)
-                throw new KeyNotFoundException($"order with user ID {uid} not found.");
-
-            return order;
+            var orders = _orderRepo.GetOrderByUserId(uid);
+            if (orders == null)
+                throw new KeyNotFoundException($"Orders for user {uid} not found.");
+            return orders;
         }
+
+        public Order? GetOrderEntityById(int oid) => _orderRepo.GetOrderById(oid);
 
         public void DeleteOrder(int oid)
         {
-            var order = _orderRepo.GetOrderById(oid);
-            if (order == null)
-                throw new KeyNotFoundException($"order with ID {oid} not found.");
-
+            var order = _orderRepo.GetOrderById(oid)
+                        ?? throw new KeyNotFoundException($"Order {oid} not found.");
             _orderRepo.DeleteOrder(oid);
-            throw new Exception($"order with ID {oid} is deleted");
-        }
-        public void AddOrder(Order order)
-        {
-            _orderRepo.AddOrder(order);
-        }
-        public void UpdateOrder(Order order)
-        {
-            _orderRepo.UpdateOrder(order);
         }
 
-        //Places an order for the given list of items and user ID.
-        public void PlaceOrder( List<OrderItemDTO> items, int uid)
+        public void AddOrder(Order order) => _orderRepo.AddOrder(order);
+        public void UpdateOrder(Order order) => _orderRepo.UpdateOrder(order);
+
+        public void PlaceOrder(List<OrderItemDTO> items, int uid)
         {
-            // Temporary variable to hold the currently processed product
-            Product existingProduct = null;
-            
-            decimal TotalPrice, totalOrderPrice = 0; // Variables to hold the total price of each item and the overall order
+            if (items == null || items.Count == 0)
+                throw new ArgumentException("Order items cannot be empty.", nameof(items));
 
-            OrderProducts orderProducts = null;
+            decimal totalOrderPrice = 0m;
 
-            // Validate all items in the order
-            for (int i = 0; i < items.Count; i++)
-            {
-                TotalPrice = 0;
-                existingProduct = _productService.GetProductByName(items[i].ProductName);
-                if (existingProduct == null)
-                    throw new Exception($"{items[i].ProductName} not Found");
-
-                if (existingProduct.Stock < items[i].Quantity)
-                    throw new Exception($"{items[i].ProductName} is out of stock");
-
-            }
-            // Create a new order for the user
-            var order = new Order { UID = uid, OrderDate = DateTime.Now, TotalAmount = 0 };
-            AddOrder(order); // Save the order to the database
-
-            // Process each item in the order
+            // 1) Validate stock
             foreach (var item in items)
             {
-                // Retrieve the product by its name
-                existingProduct = _productService.GetProductByName(item.ProductName);
-               
-                // Calculate the total price for the current item
-                TotalPrice = item.Quantity * existingProduct.Price;
-
-                // Deduct the ordered quantity from the product's stock
-                existingProduct.Stock -= item.Quantity;
-
-                // Update the overall total order price
-                totalOrderPrice += TotalPrice;
-
-                // Create a relationship record between the order and product
-                orderProducts = new OrderProducts {OID = order.OID, PID = existingProduct.PID, Quantity = item.Quantity  };
-                _orderProductsService.AddOrderProducts(orderProducts);
-
-                // Update the product's stock in the database
-                _productService.UpdateProduct(existingProduct);
+                var product = _productService.GetProductByName(item.ProductName)
+                              ?? throw new Exception($"{item.ProductName} not found");
+                if (product.Stock < item.Quantity)
+                    throw new Exception($"{item.ProductName} is out of stock");
             }
 
-            // Update the total amount of the order
+            // 2) Create order shell
+            var order = new Order { UID = uid, OrderDate = DateTime.Now, TotalAmount = 0m };
+            AddOrder(order);
+
+            // 3) Add lines + update stock
+            foreach (var item in items)
+            {
+                var product = _productService.GetProductByName(item.ProductName)!;
+
+                var lineTotal = item.Quantity * product.Price;
+                totalOrderPrice += lineTotal;
+
+                product.Stock -= item.Quantity;
+
+                var orderProducts = new OrderProducts
+                {
+                    OID = order.OID,
+                    PID = product.PID,
+                    Quantity = item.Quantity
+                };
+
+                _orderProductsService.AddOrderProducts(orderProducts);
+                _productService.UpdateProduct(product);
+            }
+
+            // 4) Finalize order total
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
-
         }
-
-
     }
 }

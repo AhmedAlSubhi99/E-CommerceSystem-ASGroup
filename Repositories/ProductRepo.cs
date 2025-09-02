@@ -39,6 +39,12 @@ namespace E_CommerceSystem.Repositories
         {
             try
             {
+                if (!_context.Categories.Any(c => c.CategoryId == product.CategoryId))
+                    throw new ArgumentException($"Category {product.CategoryId} not found.");
+
+                if (!_context.Suppliers.Any(s => s.SupplierId == product.SupplierId))
+                    throw new ArgumentException($"Supplier {product.SupplierId} not found.");
+
                 _context.Products.Add(product);
                 _context.SaveChanges();
             }

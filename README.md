@@ -14,25 +14,25 @@ It manages **users, products, orders, and reviews** in a secure and efficient wa
 
 ## 👨‍💻 Project Structure (For Developers)
 
-E-CommerceSystem/
-
-┣ Controllers/ # API endpoints (Users, Products, Orders, Reviews)
-
-┣ DTOs/ # Data Transfer Objects for input/output
-
-┣ Models/ # Entity classes (User, Product, Order, OrderProducts, Review)
-
-┣ Repositories/ # Repository pattern for database access
-
-┣ Services/ # Business logic (Auth, Orders, Products, Reviews)
-
-┣ Data/ # ApplicationDbContext, EF migrations
-
-┣ Middleware/ # Error handling & auth pipeline
-
-┣ Program.cs # Entry point & service configuration
-
-┣ appsettings.json # DB connection & JWT configuration
+	E-CommerceSystem/
+	|
+	┣ Controllers/ # API endpoints (Users, Products, Orders, Reviews)
+	|
+	┣ DTOs/ # Data Transfer Objects for input/output
+	|
+	┣ Models/ # Entity classes (User, Product, Order, OrderProducts, Review)
+	|
+	┣ Repositories/ # Repository pattern for database access
+	|
+	┣ Services/ # Business logic (Auth, Orders, Products, Reviews)
+	|
+	┣ Data/ # ApplicationDbContext, EF migrations
+	|
+	┣ Middleware/ # Error handling & auth pipeline
+	|
+	┣ Program.cs # Entry point & service configuration
+	|
+	┣ appsettings.json # DB connection & JWT configuration
 
 
 ---
