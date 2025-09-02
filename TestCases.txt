@@ -1,0 +1,58 @@
+ User:
+* Register
+	1- Test to pass 
+    	"UName": "Ahmed",
+   	 "Email": "ahmed@gmail.com",
+    	"Password": "Pass1234",
+   	 "Phone": "92333333",
+   	 "Role": "user"
+
+	2-Missing Required Fields (Role)
+	"UName": "Ahmed",
+   	 "Email": "ahmed@gmail.com",
+    	"Password": "Pass1234",
+   	 "Phone": "92333333"
+	
+	3- Invalid Email Format
+	"UName": "Ahmed",
+   	 "Email": "ahmed.com",
+    	"Password": "Pass1234",
+   	 "Phone": "92333333"
+	"Role": "user"
+
+	4- Invalid Password Format
+	"UName": "Ahmed",
+   	 "Email": "ahmed@gmail.com",
+    	"Password": "pass123",
+   	 "Phone": "92333333"
+	"Role": "user"
+
+	5-  Null Input
+	null
+
+	6- Duplicate User Registration
+	"UName": "Ahmed",
+   	 "Email": "ahmed@gmail.com",
+    	"Password": "Pass1234",
+   	 "Phone": "92333333",
+   	 "Role": "user"
+
+* Login
+	1-  Test to pass
+	email: ahmed@gmail.com
+	password:Pass1234
+
+	2-Missing Credentials
+	 email: 
+	password:Pass1234
+
+	3- Invalid Credentials
+	email: ahmed@gmail.com
+	password:Pass3333
+
+*GetUserById
+	1- Test to pass
+	UID : 6
+
+	2-Invalid User ID (non-positive value)
+	UID : 0
