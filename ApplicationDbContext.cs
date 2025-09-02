@@ -19,6 +19,8 @@ namespace E_CommerceSystem
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder.Entity<User>()
                         .HasIndex(u => u.Email)
                         .IsUnique();
@@ -36,6 +38,21 @@ namespace E_CommerceSystem
                 .HasForeignKey(p => p.SupplierId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Order>(e =>
+            {
+                e.Property(o => o.Status)
+                 .HasConversion<string>()
+                 .HasMaxLength(50)
+                 .IsRequired();
+                e.Property(o => o.TotalAmount).HasPrecision(18, 2);
+            });
+
+            // If Product has a decimal price, it’s good to fix its precision too ... 
+            modelBuilder.Entity<Product>(e =>
+            {
+                e.Property(p => p.Price).HasPrecision(18, 2);
+                e.Property(p => p.OverallRating).HasPrecision(18, 2);
+            });
         }
     }
 }

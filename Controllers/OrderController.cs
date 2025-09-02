@@ -111,6 +111,22 @@ namespace E_CommerceSystem.Controllers
         {
             return Ok(summaryService.GetSummaries(pageNumber, pageSize));
         }
+        [HttpPost("{orderId:int}/Cancel")]
+        public async Task<IActionResult> Cancel(int orderId)
+        {
+            // You already decode JWT elsewhere; reuse your helper.
+            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var userIdStr = GetUserIdFromToken(token); // your existing method
+            if (!int.TryParse(userIdStr, out var userId))
+                return Unauthorized("Invalid user id in token.");
+
+            var isAdmin = User.IsInRole("admin"); // works with [Authorize] + roles in JWT
+
+            var (ok, message) = await _orderService.CancelOrderAsync(orderId, userId, isAdmin);
+            if (!ok) return BadRequest(message);
+
+            return Ok(message);
+        }
 
     }
 }

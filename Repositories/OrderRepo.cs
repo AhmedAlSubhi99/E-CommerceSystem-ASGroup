@@ -7,6 +7,7 @@ namespace E_CommerceSystem.Repositories
     {
         public ApplicationDbContext _context;
 
+
         public OrderRepo(ApplicationDbContext context)
         {
             _context = context;
@@ -90,6 +91,16 @@ namespace E_CommerceSystem.Repositories
                 throw new InvalidOperationException($"Database error: {ex.Message}");
             }
         }
+        public async Task<Order?> GetOrderWithDetailsAsync(int orderId)
+        {
+            return await _context.Orders
+                .Include(o => o.OrderProducts)
+                    .ThenInclude(op => op.product)
+                .Include(o => o.user)
+                .FirstOrDefaultAsync(o => o.OID == orderId);
+        }
+
+        public Task SaveChangesAsync() => _context.SaveChangesAsync();
 
     }
 }
