@@ -1,4 +1,5 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
@@ -14,11 +15,13 @@ namespace E_CommerceSystem.Controllers
     {
         private readonly IReviewService _reviewService;
         private readonly IConfiguration _configuration;
+        private readonly IMapper _mapper;
 
         public ReviewController(IReviewService reviewService, IConfiguration configuration)
         {
             _reviewService = reviewService;
             _configuration = configuration;
+            _mapper = mapper;
         }
         [HttpPost("AddReview")]
         public IActionResult AddReview(int pid, ReviewDTO review)

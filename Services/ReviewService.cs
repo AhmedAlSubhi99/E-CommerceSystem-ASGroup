@@ -1,7 +1,7 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using System.Security.Cryptography;
+
 
 namespace E_CommerceSystem.Services
 {
@@ -11,12 +11,17 @@ namespace E_CommerceSystem.Services
         public IProductService _productService;
         public IOrderService _orderService;
         public IOrderProductsService _orderProductsService;
-        public ReviewService(IReviewRepo reviewRepo, IProductService productService, IOrderProductsService orderProductsService, IOrderService orderService)
+        private readonly ApplicationDbContext _ctx;
+        private readonly IMapper _mapper;
+
+        public ReviewService(IReviewRepo reviewRepo, IProductService productService, IOrderProductsService orderProductsService, IOrderService orderService, ApplicationDbContext ctx, IMapper mapper)
         {
             _reviewRepo = reviewRepo;
             _productService = productService;
             _orderProductsService = orderProductsService;
             _orderService = orderService;
+            _ctx = ctx;
+            _mapper = mapper;
         }
         public IEnumerable<Review> GetAllReviews(int pageNumber, int pageSize,int pid)
         {
@@ -48,7 +53,7 @@ namespace E_CommerceSystem.Services
         {
             return _reviewRepo.GetReviewByProductId(pid);
         }
-        public void AddReview(int uid, int pid, ReviewDTO reviewDTO)
+        public ReviewDTO AddReview(int uid, int pid, ReviewDTO reviewDTO)
         {
             // Get all orders for the user
             var orders = _orderService.GetOrderByUserId(uid);

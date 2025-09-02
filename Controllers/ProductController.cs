@@ -1,4 +1,5 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
@@ -18,11 +19,13 @@ namespace E_CommerceSystem.Controllers
     {
         private readonly IProductService _productService;
         private readonly IConfiguration _configuration;
+        private readonly IMapper _mapper;
 
         public ProductController(IProductService productService, IConfiguration configuration)
         {
             _productService = productService;
             _configuration = configuration;
+            _mapper = mapper;
         }
 
         [HttpPost("AddProduct")]
@@ -49,19 +52,20 @@ namespace E_CommerceSystem.Controllers
                 }
 
                 // Create a new product
-                var product = new Product
-                {
-                    ProductName = productInput.ProductName,
-                    Price = productInput.Price,
-                    Description = productInput.Description,
-                    Stock = productInput.Stock,
-                    OverallRating = 0
-                };
+                //var product = new Product
+                //{
+                //    ProductName = productInput.ProductName,
+                //    Price = productInput.Price,
+                //    Description = productInput.Description,
+                //    Stock = productInput.Stock,
+                //    OverallRating = 0
+                //};
+                var product = _mapper.Map<Product>(productInput);
 
                 // Add the new product to the database/service layer
                 _productService.AddProduct(product);
 
-                return Ok(product);
+                return Ok(_mapper.Map<ProductDTO>(product));
             }
             catch (Exception ex)
             {
@@ -91,15 +95,18 @@ namespace E_CommerceSystem.Controllers
                     return BadRequest("Product data is required.");
 
                 var product = _productService.GetProductById(productId);
-                
-                product.ProductName = productInput.ProductName;
-                product.Price = productInput.Price;
-                product.Description = productInput.Description;
-                product.Stock = productInput.Stock;
-                 
+                if (product == null) return NotFound($"Product {productId} not found.");
+
+                _mapper.Map(productInput, product);
+
+                //product.ProductName = productInput.ProductName;
+                //product.Price = productInput.Price;
+                //product.Description = productInput.Description;
+                //product.Stock = productInput.Stock;
+
                 _productService.UpdateProduct(product);
 
-                return Ok(product);
+                return Ok(_mapper.Map<ProductDTO>(product));
             }
             catch (Exception ex)
             {
@@ -134,7 +141,9 @@ namespace E_CommerceSystem.Controllers
                     return NotFound("No products found matching the given criteria.");
                 }
 
-                return Ok(products);
+                // map to DTO list
+                var result = _mapper.Map<IEnumerable<ProductDTO>>(products);
+                return Ok(result);
             }
             catch (Exception ex)
             {

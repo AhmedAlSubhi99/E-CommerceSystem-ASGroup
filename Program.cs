@@ -1,4 +1,5 @@
 
+using AutoMapper;
 using E_CommerceSystem.Repositories;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -95,6 +96,14 @@ namespace E_CommerceSystem
     });
             });
             var app = builder.Build();
+
+            #if DEBUG
+            using (var scope = app.Services.CreateScope())
+            {
+                var mapper = scope.ServiceProvider.GetRequiredService<IMapper>();
+                mapper.ConfigurationProvider.AssertConfigurationIsValid();
+            }
+            #endif
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
