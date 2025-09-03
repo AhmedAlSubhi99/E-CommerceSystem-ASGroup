@@ -61,6 +61,8 @@ namespace E_CommerceSystem
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                  options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            builder.Services.AddScoped<IReportsService, ReportsService>();
+
             // Add JWT Authentication
             var jwtSettings = builder.Configuration.GetSection("Jwt");
 
