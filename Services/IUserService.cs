@@ -17,5 +17,6 @@ namespace E_CommerceSystem.Services
         void SaveRefreshToken(int userId, RefreshToken token);
         RefreshToken? GetRefreshToken(string token);
         void RevokeRefreshToken(string token);
+        User? GetUserByEmail(string email);
     }
 }

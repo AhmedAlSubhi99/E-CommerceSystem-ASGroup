@@ -1,17 +1,24 @@
 ﻿using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace E_CommerceSystem.Services
 {
     public class UserService : IUserService
     {
         private readonly IUserRepo _userRepo;
+        private readonly IConfiguration _configuration;
 
-        public UserService(IUserRepo userRepo)
+        public UserService(IUserRepo userRepo, IConfiguration configuration)
         {
             _userRepo = userRepo;
+            _configuration = configuration;
         }
+
 
         public void AddUser(User user)
         {
@@ -31,6 +38,21 @@ namespace E_CommerceSystem.Services
 
             return user;
         }
+        public (string AccessToken, RefreshToken RefreshToken)? Login(string email, string password)
+        {
+            var user = ValidateUser(email, password);
+            if (user == null) return null;
+
+            // Generate JWT Access Token
+            var accessToken = GenerateJwtToken(user);
+
+            // Generate Refresh Token
+            var refreshToken = GenerateRefreshToken();
+            SaveRefreshToken(user.UID, refreshToken);
+
+            return (accessToken, refreshToken);
+        }
+
         public void DeleteUser(int uid)
         {
             var user = _userRepo.GetUserById(uid);
@@ -100,7 +122,36 @@ namespace E_CommerceSystem.Services
                 _userRepo.UpdateRefreshToken(refresh);
             }
         }
+        public string GenerateJwtToken(User user)
+        {
+            var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
+            var tokenHandler = new JwtSecurityTokenHandler();
 
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.UID.ToString()),
+        new Claim(ClaimTypes.Email, user.Email ?? ""),
+        new Claim(ClaimTypes.Role, user.Role ?? "Customer") // default role
+    };
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddMinutes(15), // Access token lifetime
+                Issuer = _configuration["Jwt:Issuer"],
+                Audience = _configuration["Jwt:Audience"],
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key),
+                    SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+        public User? GetUserByEmail(string email)
+        {
+            return _userRepo.GetByEmail(email);
+        }
     }
 
 }

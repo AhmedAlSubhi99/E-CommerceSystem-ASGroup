@@ -13,19 +13,14 @@ namespace E_CommerceSystem.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[Controller]")]
-    public class UserController: ControllerBase
+    public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
         private readonly ILogger<UserController> _logger;
 
-        public UserController(IUserService userService, IConfiguration configuration, IMapper mapper)
-        {
-            _userService = userService;
-            _configuration = configuration;
-            _mapper = mapper;
-        }
+        // ✅ Only one constructor (no DI conflicts)
         public UserController(
             IUserService userService,
             IConfiguration configuration,
@@ -37,6 +32,10 @@ namespace E_CommerceSystem.Controllers
             _mapper = mapper;
             _logger = logger;
         }
+
+        // -------------------------------
+        // JWT Token Generator
+        // -------------------------------
         [NonAction]
         public string GenerateJwtToken(string userId, string username, string role)
         {
@@ -47,15 +46,16 @@ namespace E_CommerceSystem.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sub, userId),
                 new Claim(JwtRegisteredClaimNames.Name, username),
-                new Claim(JwtRegisteredClaimNames.UniqueName, role),
+                new Claim(ClaimTypes.Role, role ?? "Customer"),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
+                issuer: jwtSettings["Issuer"],
+                audience: jwtSettings["Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryInMinutes"])),
                 signingCredentials: creds
@@ -64,21 +64,40 @@ namespace E_CommerceSystem.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        // -------------------------------
+        // Register
+        // -------------------------------
         [AllowAnonymous]
         [HttpPost("Register")]
-        public IActionResult Register(UserDTO InputUser)
+        public IActionResult Register(UserDTO inputUser)
         {
-                if(InputUser == null)
-                    return BadRequest("User data is required");
+            if (inputUser == null)
+                return BadRequest("User data is required");
 
-                var user = _mapper.Map<User>(InputUser);
-                user.CreatedAt = DateTime.Now;
+            // Check if email already exists
+            var existing = _userService.GetUserByEmail(inputUser.Email);
+            if (existing != null)
+                return Conflict("A user with this email already exists.");
 
-                _userService.AddUser(user);
+            var user = _mapper.Map<User>(inputUser);
+            user.CreatedAt = DateTime.UtcNow;
 
-                return Ok(_mapper.Map<UserDTO>(user));
+            // ✅ Hash password before saving
+            user.Password = BCrypt.Net.BCrypt.HashPassword(inputUser.Password);
+
+            // ✅ Default role if not provided
+            if (string.IsNullOrEmpty(user.Role))
+                user.Role = "Customer";
+
+            _userService.AddUser(user);
+
+            var response = _mapper.Map<UserDTO>(user);
+            return Ok(new { message = "User registered successfully", user = response });
         }
 
+        // -------------------------------
+        // Login
+        // -------------------------------
         [AllowAnonymous]
         [HttpPost("Login")]
         public IActionResult Login([FromBody] LoginDto loginDto)
@@ -91,7 +110,7 @@ namespace E_CommerceSystem.Controllers
             var refreshToken = _userService.GenerateRefreshToken();
             _userService.SaveRefreshToken(user.UID, refreshToken);
 
-            // Store both in cookies
+            // ✅ Store in cookies
             Response.Cookies.Append("AuthToken", accessToken, new CookieOptions
             {
                 HttpOnly = true,
@@ -115,17 +134,14 @@ namespace E_CommerceSystem.Controllers
             return Ok(response);
         }
 
-
-
         // -------------------------------
-        // Logout 
+        // Logout
         // -------------------------------
         [HttpPost("Logout")]
         public IActionResult Logout()
         {
             try
             {
-                // Remove the cookie
                 Response.Cookies.Delete("AuthToken");
                 Response.Cookies.Delete("RefreshToken");
 
@@ -140,6 +156,10 @@ namespace E_CommerceSystem.Controllers
                 return StatusCode(500, new { error = "An error occurred while logging out." });
             }
         }
+
+        // -------------------------------
+        // Get User by Id
+        // -------------------------------
         [HttpGet("GetUserById/{UserID}")]
         public IActionResult GetUserById(int UserID)
         {
@@ -150,7 +170,9 @@ namespace E_CommerceSystem.Controllers
             return Ok(dto);
         }
 
-
+        // -------------------------------
+        // Refresh Token
+        // -------------------------------
         [AllowAnonymous]
         [HttpPost("Refresh")]
         public IActionResult Refresh()
@@ -189,7 +211,5 @@ namespace E_CommerceSystem.Controllers
 
             return Ok(new { AccessToken = newAccessToken, RefreshToken = newRefreshToken.Token });
         }
-
-
     }
 }
