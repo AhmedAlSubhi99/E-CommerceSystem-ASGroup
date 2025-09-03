@@ -10,6 +10,7 @@ namespace E_CommerceSystem.Services
         private readonly IOrderRepo _orderRepo;
         private readonly IProductService _productService;
         private readonly IOrderProductsService _orderProductsService;
+        private readonly IEmailService _emailService;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
@@ -17,12 +18,14 @@ namespace E_CommerceSystem.Services
             IOrderRepo orderRepo,
             IProductService productService,
             IOrderProductsService orderProductsService,
+            IEmailService emailService,
             ApplicationDbContext ctx,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _productService = productService;
             _orderProductsService = orderProductsService;
+            _emailService = emailService;
             _ctx = ctx;
             _mapper = mapper;
         }
@@ -186,11 +189,18 @@ namespace E_CommerceSystem.Services
                     throw new Exception($"{item.ProductName} is out of stock");
             }
 
-            // Create order shell
-            var order = new Order { UID = uid, OrderDate = DateTime.Now, TotalAmount = 0m };
+            // 2) Create order shell
+            var order = new Order
+            {
+                UID = uid,
+                OrderDate = DateTime.Now,
+                TotalAmount = 0m,
+                Status = OrderStatus.Pending,
+                StatusUpdatedAtUtc = DateTime.UtcNow
+            };
             AddOrder(order);
 
-            // Add lines + update stock
+            // 3) Add lines + update stock
             foreach (var item in items)
             {
                 var product = _productService.GetProductByName(item.ProductName)!;
@@ -209,13 +219,21 @@ namespace E_CommerceSystem.Services
 
                 _orderProductsService.AddOrderProducts(orderProducts);
                 _ctx.Products.Update(product);
-                _ctx.SaveChangesAsync();
+                _ctx.SaveChanges();
             }
 
-            //  Finalize order total
+            // 4) Finalize order total
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
+
+            // 5) Send email notification
+            var user = _ctx.Users.FirstOrDefault(u => u.UID == uid);
+            if (user != null)
+            {
+                _emailService.SendOrderPlacedEmail(user.Email, order.OID, totalOrderPrice);
+            }
         }
+
         public async Task<OrderSummaryDTO?> GetOrderDetails(int orderId)
         {
             var order = _ctx.Orders
@@ -242,15 +260,15 @@ namespace E_CommerceSystem.Services
         }
         public void CancelOrder(int orderId, int userId)
         {
-            var order = _ctx.Orders.Include(o => o.OrderProducts)
-                                       .ThenInclude(op => op.product)
-                                       .FirstOrDefault(o => o.OID == orderId && o.UID == userId);
+            var order = _ctx.Orders
+                .Include(o => o.OrderProducts).ThenInclude(op => op.product)
+                .Include(o => o.user)
+                .FirstOrDefault(o => o.OID == orderId && o.UID == userId);
 
             if (order == null) throw new ArgumentException("Order not found");
             if (order.Status == OrderStatus.Cancelled)
                 throw new InvalidOperationException("Order already cancelled");
 
-            order.Status = OrderStatus.Cancelled;
             // Restore stock
             foreach (var item in order.OrderProducts)
             {
@@ -261,6 +279,12 @@ namespace E_CommerceSystem.Services
             order.StatusUpdatedAtUtc = DateTime.UtcNow;
 
             _ctx.SaveChanges();
+
+            // Send cancellation email
+            if (order.user != null)
+            {
+                _emailService.SendOrderCancelledEmail(order.user.Email, order.OID);
+            }
         }
         public OrderSummaryDTO GetOrderSummary(int orderId)
         {
