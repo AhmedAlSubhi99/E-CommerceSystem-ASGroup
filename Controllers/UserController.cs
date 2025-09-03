@@ -26,57 +26,6 @@ namespace E_CommerceSystem.Controllers
             _mapper = mapper;
         }
 
-        [AllowAnonymous]
-        [HttpPost("Register")]
-        public IActionResult Register(UserDTO InputUser)
-        {
-            try
-            {
-                if(InputUser == null)
-                    return BadRequest("User data is required");
-
-                var user = _mapper.Map<User>(InputUser);
-                user.CreatedAt = DateTime.Now;
-
-                _userService.AddUser(user);
-
-                return Ok(_mapper.Map<UserDTO>(user));
-            }
-            catch (Exception ex)
-            {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while adding the user. {ex.Message} ");
-            }
-        }
-
-
-        [AllowAnonymous]
-        [HttpPost("Login")]
-        public IActionResult Login(string email, string password)
-        {
-            var user = _userService.GetUSer(email, password);
-
-            if (user == null)
-                return Unauthorized("Invalid credentials");
-
-            string token = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
-
-            var response = _mapper.Map<LoginResponseDTO>(user);
-            response.AccessToken = token;
-
-            return Ok(response);
-        }
-
-        [HttpGet("GetUserById/{UserID}")]
-        public IActionResult GetUserById(int UserID)
-        {
-            var user = _userService.GetUserById(UserID);
-            if (user == null) return NotFound();
-
-            var dto = _mapper.Map<UserDTO>(user);
-            return Ok(dto);
-        }
-
         [NonAction]
         public string GenerateJwtToken(string userId, string username, string role)
         {
@@ -103,6 +52,88 @@ namespace E_CommerceSystem.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        [AllowAnonymous]
+        [HttpPost("Register")]
+        public IActionResult Register(UserDTO InputUser)
+        {
+            try
+            {
+                if(InputUser == null)
+                    return BadRequest("User data is required");
+
+                var user = _mapper.Map<User>(InputUser);
+                user.CreatedAt = DateTime.Now;
+
+                _userService.AddUser(user);
+
+                return Ok(_mapper.Map<UserDTO>(user));
+            }
+            catch (Exception ex)
+            {
+                // Return a generic error response
+                return StatusCode(500, $"An error occurred while adding the user. {ex.Message} ");
+            }
+        }
+
+
+        [AllowAnonymous]
+        [HttpPost("Login")]
+        public IActionResult Login([FromBody] LoginDto loginDto)
+        {
+            var user = _userService.Authenticate(loginDto.Email, loginDto.Password);
+            if (user == null)
+                return Unauthorized("Invalid email or password");
+
+            var token = _userService.GenerateJwtToken(user);
+
+            // Store token in HttpOnly cookie
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,           // only over HTTPS
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddMinutes(30) // match token lifetime
+            };
+
+            Response.Cookies.Append("AuthToken", token, cookieOptions);
+
+            return Ok(new { message = "Login successful" });
+        }
+
+        // -------------------------------
+        // Logout 
+        // -------------------------------
+        [HttpPost("Logout")]
+        public IActionResult Logout()
+        {
+            try
+            {
+                // Remove the cookie
+                Response.Cookies.Delete("AuthToken");
+
+                _logger.LogInformation("User {User} logged out successfully at {Time}",
+                    User.Identity?.Name ?? "Unknown", DateTime.UtcNow);
+
+                return Ok(new { message = "Logged out successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while logging out.");
+                return StatusCode(500, new { error = "An error occurred while logging out." });
+            }
+        }
+        [HttpGet("GetUserById/{UserID}")]
+        public IActionResult GetUserById(int UserID)
+        {
+            var user = _userService.GetUserById(UserID);
+            if (user == null) return NotFound();
+
+            var dto = _mapper.Map<UserDTO>(user);
+            return Ok(dto);
+        }
+
+        
 
 
     }
