@@ -37,7 +37,14 @@ public class MappingProfile : Profile
         // -----------------
         // Order 
         // -----------------
-        CreateMap<Order, OrdersOutputDTO>().ReverseMap();
+        CreateMap<Order, OrderDTO>()
+      .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()))
+      .ForMember(d => d.TotalAmount, o => o.MapFrom(s => s.TotalAmount))
+      .ForMember(d => d.CreatedAtUtc, o => o.MapFrom(s => s.OrderDate))
+      .ReverseMap()
+      .ForMember(d => d.Status, o => o.MapFrom(s => Enum.Parse<OrderStatus>(s.Status)))
+      .ForMember(d => d.OID, o => o.Ignore());
+
         CreateMap<OrderProducts, OrdersOutputDTO>()
             .ForMember(d => d.ProductName, opt => opt.MapFrom(s => s.product.ProductName))
             .ForMember(d => d.Quantity, opt => opt.MapFrom(s => s.Quantity))
