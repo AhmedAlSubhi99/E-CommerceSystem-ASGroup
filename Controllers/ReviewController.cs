@@ -15,45 +15,50 @@ namespace E_CommerceSystem.Controllers
         private readonly IReviewService _reviewService;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly ILogger<ReviewController> _logger;
 
-        public ReviewController(IReviewService reviewService, IConfiguration configuration, IMapper mapper)
+        public ReviewController(IReviewService reviewService, IConfiguration configuration, IMapper mapper, ILogger<ReviewController> logger)
         {
             _reviewService = reviewService;
             _configuration = configuration;
             _mapper = mapper;
+            _logger = logger;
         }
+
         [HttpPost("{productId:int}")]
         public IActionResult AddReview(int productId, [FromBody] ReviewDTO dto)
         {
             if (dto == null)
+            {
+                _logger.LogWarning("AddReview failed: DTO was null for ProductId={ProductId}", productId);
                 return BadRequest("Review data is required.");
+            }
 
             int userId = GetUserIdFromToken();
-
             var review = _reviewService.AddReview(userId, productId, dto);
             var result = _mapper.Map<ReviewDTO>(review);
+
+            _logger.LogInformation("User {UserId} added a review for ProductId={ProductId} with ReviewId={ReviewId}", userId, productId, review.ReviewID);
 
             return Ok(result);
         }
 
         [AllowAnonymous]
         [HttpGet("GetAllReviews")]
-        public IActionResult GetAllReviews(
-            [FromQuery] int productId,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public IActionResult GetAllReviews([FromQuery] int productId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
+            if (pageNumber < 1 || pageSize < 1)
+            {
+                _logger.LogWarning("Invalid pagination values: PageNumber={PageNumber}, PageSize={PageSize}", pageNumber, pageSize);
+                return BadRequest("PageNumber and PageSize must be greater than 0.");
+            }
 
-                if (pageNumber < 1 || pageSize < 1)
-                    return BadRequest("PageNumber and PageSize must be greater than 0.");
+            var reviews = _reviewService.GetAllReviews(pageNumber, pageSize, productId);
+            var reviewDtos = _mapper.Map<List<ReviewDTO>>(reviews);
 
-                var reviews = _reviewService.GetAllReviews(pageNumber, pageSize, productId);
-                // Map entities -> DTOs in one line
-                var reviewDtos = _mapper.Map<List<ReviewDTO>>(reviews);
+            _logger.LogInformation("Fetched {Count} reviews for ProductId={ProductId}, Page={PageNumber}, PageSize={PageSize}", reviewDtos.Count, productId, pageNumber, pageSize);
 
-                // Prefer returning 200 with empty list rather than 404 for “no results”
-                return Ok(reviewDtos);
-
+            return Ok(reviewDtos);
         }
 
         [Authorize]
@@ -64,26 +69,39 @@ namespace E_CommerceSystem.Controllers
             bool isAdmin = User.IsInRole("admin");
 
             _reviewService.DeleteReview(reviewId, userId, isAdmin);
+
+            _logger.LogInformation("Review {ReviewId} deleted by User {UserId} (Admin={IsAdmin})", reviewId, userId, isAdmin);
+
             return NoContent();
         }
 
         [HttpPut("UpdateReview/{reviewId:int}")]
         public IActionResult UpdateReview(int reviewId, [FromBody] ReviewDTO reviewDTO)
         {
-            if (reviewDTO == null) return BadRequest("Review data is required.");
+            if (reviewDTO == null)
+            {
+                _logger.LogWarning("UpdateReview failed: DTO was null for ReviewId={ReviewId}", reviewId);
+                return BadRequest("Review data is required.");
+            }
 
             var existing = _reviewService.GetReviewById(reviewId);
-            if (existing == null) return NotFound($"Review with ID {reviewId} not found.");
+            if (existing == null)
+            {
+                _logger.LogWarning("UpdateReview failed: Review {ReviewId} not found.", reviewId);
+                return NotFound($"Review with ID {reviewId} not found.");
+            }
 
             var userId = GetUserIdFromToken();
             if (existing.UID != userId)
+            {
+                _logger.LogWarning("User {UserId} attempted to update Review {ReviewId} that does not belong to them.", userId, reviewId);
                 return BadRequest("You are not authorized to update this review.");
+            }
 
-            //  Map ReviewDTO into existing Review entity
             _mapper.Map(reviewDTO, existing);
-
-            //  Pass the entity to the service
             _reviewService.UpdateReview(reviewId, reviewDTO);
+
+            _logger.LogInformation("Review {ReviewId} updated successfully by User {UserId}.", reviewId, userId);
 
             return Ok($"Review with ID {reviewId} updated successfully.");
         }
@@ -102,6 +120,8 @@ namespace E_CommerceSystem.Controllers
                 if (subClaim != null && int.TryParse(subClaim.Value, out var uid))
                     return uid;
             }
+
+            _logger.LogWarning("Invalid or missing token when trying to extract UserId.");
             throw new UnauthorizedAccessException("Invalid or missing token.");
         }
     }
