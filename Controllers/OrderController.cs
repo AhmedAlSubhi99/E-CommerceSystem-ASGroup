@@ -201,5 +201,27 @@ namespace E_CommerceSystem.Controllers
             var ok = _orderService.UpdateStatus(orderId, newStatus);
             return ok ? NoContent() : BadRequest("Invalid status transition or order not found.");
         }
+
+        [Authorize]
+        [HttpGet("{orderId:int}/invoice")]
+        public async Task<IActionResult> DownloadInvoice(
+            int orderId,
+            [FromServices] IInvoiceService invoiceService)
+        {
+            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var userIdStr = GetUserIdFromToken(token);
+            if (!int.TryParse(userIdStr, out var requestUserId))
+                return Unauthorized("Invalid user id in token.");
+
+            var isAdmin = User.IsInRole("admin");
+            var result = await invoiceService.GeneratePdfAsync(orderId, requestUserId, isAdmin);
+
+            if (result == null)
+                return NotFound("Invoice not available or you don't have access to this order.");
+
+            var (bytes, fileName) = result.Value;
+            return File(bytes, "application/pdf", fileName);
+        }
+
     }
 }

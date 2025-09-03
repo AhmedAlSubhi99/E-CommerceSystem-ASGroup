@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using QuestPDF.Infrastructure;
 
 namespace E_CommerceSystem
 {
@@ -15,6 +16,7 @@ namespace E_CommerceSystem
     {
         public static void Main(string[] args)
         {
+            QuestPDF.Settings.License = LicenseType.Community;
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddControllers();
 
@@ -37,6 +39,7 @@ namespace E_CommerceSystem
 
             builder.Services.AddScoped<IOrderSummaryService, OrderSummaryService>();
 
+            builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 
             builder.Services.AddScoped<IReviewRepo, ReviewRepo>();
             builder.Services.AddScoped<IReviewService, ReviewService>();
