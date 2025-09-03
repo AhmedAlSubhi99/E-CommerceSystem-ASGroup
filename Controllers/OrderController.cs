@@ -9,175 +9,148 @@ namespace E_CommerceSystem.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/[controller]")] // lower-case [controller] is fine
+    [Route("api/[controller]")]
     public class OrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
         private readonly IOrderSummaryService _orderSummaryService;
+        private readonly IInvoiceService _invoiceService;
         private readonly IMapper _mapper;
 
-        public OrderController(IOrderService orderService, IOrderSummaryService orderSummaryService, IMapper mapper)
+        public OrderController(
+            IOrderService orderService,
+            IOrderSummaryService orderSummaryService,
+            IInvoiceService invoiceService,
+            IMapper mapper)
         {
             _orderService = orderService;
             _orderSummaryService = orderSummaryService;
+            _invoiceService = invoiceService;
             _mapper = mapper;
         }
 
+        // ---------------------------
+        // Place Order
+        // ---------------------------
         [HttpPost("PlaceOrder")]
         public IActionResult PlaceOrder([FromBody] List<OrderItemDTO> items)
         {
-            try
-            {
-                if (items == null || !items.Any())
-                    return BadRequest("Order items cannot be empty.");
+            if (items == null || !items.Any())
+                return BadRequest("Order items cannot be empty.");
 
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken(token);
-                int uid = int.Parse(userId);
+            int uid = GetUserId();
+            _orderService.PlaceOrder(items, uid);
 
-                _orderService.PlaceOrder(items, uid);
-                return Ok("Order placed successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while placing the order. ({ex.Message})");
-            }
+            return Ok("Order placed successfully.");
         }
 
+        // ---------------------------
+        // Get All Orders (for current user)
+        // ---------------------------
         [HttpGet("GetAllOrders")]
         public IActionResult GetAllOrders()
         {
-            try
-            {
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken(token);
-                int uid = int.Parse(userId);
-
-                var entities = _orderService.GetAllOrders(uid);
-                var dtos = _mapper.Map<List<OrdersOutputDTO>>(entities);
-                return Ok(dtos);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while retrieving orders. ({ex.Message})");
-            }
+            int uid = GetUserId();
+            var entities = _orderService.GetAllOrders(uid);
+            var dtos = _mapper.Map<List<OrdersOutputDTO>>(entities);
+            return Ok(dtos);
         }
 
+        // ---------------------------
+        // Get Order By Id
+        // ---------------------------
         [HttpGet("GetOrderById/{orderId:int}")]
         public IActionResult GetOrderById(int orderId)
         {
-            try
-            {
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken(token);
-                int uid = int.Parse(userId);
-
-                var rows = _orderService.GetOrderById(orderId, uid); // returns IEnumerable<OrdersOutputDTO>
-                return Ok(rows);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while retrieving orders. ({ex.Message})");
-            }
+            int uid = GetUserId();
+            var rows = _orderService.GetOrderById(orderId, uid);
+            return rows == null ? NotFound() : Ok(rows);
         }
 
-        private string? GetUserIdFromToken(string token)
-        {
-            var handler = new JwtSecurityTokenHandler();
-            if (handler.CanReadToken(token))
-            {
-                var jwtToken = handler.ReadJwtToken(token);
-                var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "sub");
-                return subClaim?.Value;
-            }
-            throw new UnauthorizedAccessException("Invalid or unreadable token.");
-        }
+        // ---------------------------
+        // Get Order Summary
+        // ---------------------------
+        [HttpGet("{orderId:int}/summary")]
+        public ActionResult<OrderSummaryDTO> GetSummary(int orderId) =>
+            Ok(_orderSummaryService.GetSummaryByOrderId(orderId));
 
-
-        [Authorize]
-        [HttpGet("{orderId}/summary")]
-        public ActionResult<OrderSummaryDTO> GetSummary(
-    int orderId,
-    [FromServices] IOrderSummaryService summaryService)
-        {
-            return Ok(summaryService.GetSummaryByOrderId(orderId));
-        }
-
+        // ---------------------------
+        // Get Paged Summaries (Admin only)
+        // ---------------------------
         [Authorize(Roles = "admin")]
         [HttpGet("summaries")]
         public ActionResult<IEnumerable<OrderSummaryDTO>> GetSummaries(
-    [FromServices] IOrderSummaryService summaryService,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 20)
-            
-        {
-            return Ok(summaryService.GetSummaries(pageNumber, pageSize));
-        }
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20) =>
+            Ok(_orderSummaryService.GetSummaries(pageNumber, pageSize));
 
-        [Authorize]
+        // ---------------------------
+        // Cancel Order
+        // ---------------------------
         [HttpPost("{orderId:int}/Cancel")]
         public IActionResult Cancel(int orderId)
         {
-            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            var userIdStr = GetUserIdFromToken(token);
-            if (!int.TryParse(userIdStr, out var userId))
-                return Unauthorized("Invalid user id in token.");
+            int userId = GetUserId();
+            bool isAdmin = User.IsInRole("admin");
 
-            var isAdmin = User.IsInRole("admin");
-
-            try
-            {
-                var updated = _orderService.SetStatus(orderId, OrderStatus.Cancelled, userId, isAdmin);
-                return Ok(updated);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var updated = _orderService.SetStatus(orderId, OrderStatus.Cancelled, userId, isAdmin);
+            return updated != null
+                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
+                : BadRequest("Unable to cancel order.");
         }
 
-        [Authorize]
+        // ---------------------------
+        // Update Order Status (Admin/Manager)
+        // ---------------------------
+        [Authorize(Roles = "admin,manager")]
         [HttpPatch("{orderId:int}/status")]
         public IActionResult UpdateStatus(int orderId, [FromBody] UpdateOrderStatusDTO dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
                 return BadRequest("Status is required.");
 
-            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            var userIdStr = GetUserIdFromToken(token);
-            if (!int.TryParse(userIdStr, out var userId))
-                return Unauthorized("Invalid user id in token.");
+            int userId = GetUserId();
+            var newStatus = Enum.Parse<OrderStatus>(dto.Status, true);
 
-            var isAdmin = User.IsInRole("admin") || User.IsInRole("manager");
+            var updated = _orderService.SetStatus(orderId, newStatus, userId, true);
+            return updated != null
+                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
+                : BadRequest("Invalid status update.");
+        }
 
-            try
-            {
-                var updated = _orderService.SetStatus(orderId, Enum.Parse<OrderStatus>(dto.Status, true), userId, isAdmin);
-                return Ok(updated);
-            }
-            catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        // ---------------------------
+        // Quick status transitions
+        // ---------------------------
+        [Authorize(Roles = "admin,manager")]
+        [HttpPost("{orderId:int}/Pay")]
+        public IActionResult MarkPaid(int orderId)
+        {
+            int userId = GetUserId();
+            var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
+            return Ok(_mapper.Map<OrdersOutputDTO>(updated));
         }
 
         [Authorize(Roles = "admin,manager")]
-        [HttpPost("{orderId:int}/Pay")]
-        public IActionResult MarkPaid(int orderId) =>
-            Ok(_orderService.SetStatus(orderId, OrderStatus.Paid, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), true));
-
-        [Authorize(Roles = "admin,manager")]
         [HttpPost("{orderId:int}/Ship")]
-        public IActionResult MarkShipped(int orderId) =>
-            Ok(_orderService.SetStatus(orderId, OrderStatus.Shipped, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), true));
+        public IActionResult MarkShipped(int orderId)
+        {
+            int userId = GetUserId();
+            var updated = _orderService.SetStatus(orderId, OrderStatus.Shipped, userId, true);
+            return Ok(_mapper.Map<OrdersOutputDTO>(updated));
+        }
 
         [Authorize(Roles = "admin,manager")]
         [HttpPost("{orderId:int}/Deliver")]
-        public IActionResult MarkDelivered(int orderId) =>
-            Ok(_orderService.SetStatus(orderId, OrderStatus.Delivered, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), true));
+        public IActionResult MarkDelivered(int orderId)
+        {
+            int userId = GetUserId();
+            var updated = _orderService.SetStatus(orderId, OrderStatus.Delivered, userId, true);
+            return Ok(_mapper.Map<OrdersOutputDTO>(updated));
+        }
 
-        [Authorize]
-        [HttpPost("{orderId:int}/Cancel")]
-        public IActionResult cancel(int orderId) =>
-            Ok(_orderService.SetStatus(orderId, OrderStatus.Cancelled, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), User.IsInRole("admin")));
+        // ---------------------------
+        // Order Details
+        // ---------------------------
         [HttpGet("{orderId:int}/details")]
         public ActionResult<OrderSummaryDTO> GetOrderDetails(int orderId)
         {
@@ -185,57 +158,42 @@ namespace E_CommerceSystem.Controllers
             return details is null ? NotFound() : Ok(details);
         }
 
-        // For admin to view aggregated summary
+        // ---------------------------
+        // Admin Aggregated Summary
+        // ---------------------------
+        [Authorize(Roles = "admin")]
         [HttpGet("summary")]
-        [Authorize(Roles = "admin")]
-        public ActionResult<AdminOrderSummaryDTO> GetSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
-        {
-            var summary = _orderSummaryService.GetSummary(from, to);
-            return Ok(summary);
-        }
-        // Admin-only status update endpoint
-        [HttpPatch("{orderId:int}/status")]
-        [Authorize(Roles = "admin")]
-        public IActionResult UpdateStatus(int orderId, [FromBody] OrderStatus newStatus)
-        {
-            var ok = _orderService.UpdateStatus(orderId, newStatus);
-            return ok ? NoContent() : BadRequest("Invalid status transition or order not found.");
-        }
-        [HttpGet("{orderId}/invoice")]
+        public ActionResult<AdminOrderSummaryDTO> GetSummary(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to) =>
+            Ok(_orderSummaryService.GetSummary(from, to));
+
+        // ---------------------------
+        // Invoice (sync)
+        // ---------------------------
+        [HttpGet("{orderId:int}/invoice-sync")]
         public IActionResult GetInvoice(int orderId)
         {
-            try
-            {
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = int.Parse(GetUserIdFromToken(token));
-                var role = GetUserRoleFromToken(token);
+            int userId = GetUserId();
+            bool isAdmin = User.IsInRole("admin");
 
-                var pdf = _invoiceService.GenerateInvoice(orderId, userId, role);
+            var pdf = _invoiceService.GenerateInvoice(orderId, userId, isAdmin);
+            if (pdf == null) return NotFound("Invoice not found or access denied.");
 
-                return File(pdf, "application/pdf", $"Invoice_{orderId}.pdf");
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Forbid(ex.Message);
-            }
+            return File(pdf, "application/pdf", $"Invoice_{orderId}.pdf");
         }
 
-        [Authorize]
+        // ---------------------------
+        // Invoice (async)
+        // ---------------------------
         [HttpGet("{orderId:int}/invoice")]
         public async Task<IActionResult> DownloadInvoice(
             int orderId,
             [FromServices] IInvoiceService invoiceService)
         {
-            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            var userIdStr = GetUserIdFromToken(token);
-            if (!int.TryParse(userIdStr, out var requestUserId))
-                return Unauthorized("Invalid user id in token.");
+            int requestUserId = GetUserId();
+            bool isAdmin = User.IsInRole("admin");
 
-            var isAdmin = User.IsInRole("admin");
             var result = await invoiceService.GeneratePdfAsync(orderId, requestUserId, isAdmin);
 
             if (result == null)
@@ -245,5 +203,15 @@ namespace E_CommerceSystem.Controllers
             return File(bytes, "application/pdf", fileName);
         }
 
+        // ---------------------------
+        // Helpers
+        // ---------------------------
+        private int GetUserId()
+        {
+            var subClaim = User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
+            if (subClaim == null || !int.TryParse(subClaim.Value, out var userId))
+                throw new UnauthorizedAccessException("Invalid user id in token.");
+            return userId;
+        }
     }
 }
