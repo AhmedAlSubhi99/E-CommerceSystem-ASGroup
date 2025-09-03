@@ -38,10 +38,6 @@ namespace E_CommerceSystem.Controllers
                 // If your service expects a DTO, this is fine:
                 _reviewService.AddReview(uid, pid, review);
 
-                // If your service expects an entity instead, use:
-                // var entity = _mapper.Map<Review>(review);
-                // _reviewService.AddReview(uid, pid, entity);
-
                 return Ok("Review added successfully.");
             }
             catch (Exception ex)

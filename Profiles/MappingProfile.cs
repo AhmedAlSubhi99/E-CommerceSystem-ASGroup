@@ -22,8 +22,12 @@ public class MappingProfile : Profile
         // -----------------
         // Product 
         // -----------------
-        CreateMap<Product, ProductDTO>().ReverseMap();
-    
+        CreateMap<Product, ProductDTO>()
+             .ForMember(d => d.Stock, o => o.MapFrom(s => s.StockQuantity))
+             .ForMember(d => d.ImageUrl, o => o.MapFrom(s => s.ImageUrl));
+        CreateMap<ProductDTO, Product>()
+          .ForMember(d => d.StockQuantity, o => o.MapFrom(s => s.Stock))
+          .ForMember(d => d.PID, o => o.Ignore()); 
 
         // -----------------
         // User 
