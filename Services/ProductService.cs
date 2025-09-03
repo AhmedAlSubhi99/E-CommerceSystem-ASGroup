@@ -29,7 +29,7 @@ namespace E_CommerceSystem.Services
         }
 
 
-        public IEnumerable<Product> GetProducts(int page, int pageSize, string name = null, decimal? minPrice = null, decimal? maxPrice = null)
+        public IEnumerable<Product> GetProducts(int page, int pageSize, string name , decimal? minPrice , decimal? maxPrice )
         {
             var query = _ctx.Products.AsQueryable();
 
