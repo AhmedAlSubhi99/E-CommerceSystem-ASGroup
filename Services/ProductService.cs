@@ -3,8 +3,9 @@ using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System.IO;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.IO;
 using System.Security.Cryptography;
 
 namespace E_CommerceSystem.Services
@@ -28,37 +29,22 @@ namespace E_CommerceSystem.Services
         }
 
 
-        public IEnumerable<Product> GetAllProducts(int pageNumber, int pageSize, string? name = null, decimal? minPrice = null, decimal? maxPrice = null)
+        public IEnumerable<Product> GetProducts(int page, int pageSize, string name = null, decimal? minPrice = null, decimal? maxPrice = null)
         {
-            // Base query
-            var query = _productRepo.GetAllProducts();
+            var query = _ctx.Products.AsQueryable();
 
-            // Apply filters
             if (!string.IsNullOrEmpty(name))
-            {
-                query = query.Where(p => p.ProductName.Contains(name, StringComparison.OrdinalIgnoreCase));
-            }
+                query = query.Where(p => p.ProductName.Contains(name));
 
             if (minPrice.HasValue)
-            {
                 query = query.Where(p => p.Price >= minPrice.Value);
-            }
 
             if (maxPrice.HasValue)
-            {
                 query = query.Where(p => p.Price <= maxPrice.Value);
-            }
 
-            // Pagination
-            var pagedProducts = query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return pagedProducts;
-        
-    }
-         public Product GetProductById(int pid)
+            return query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        }
+        public Product GetProductById(int pid)
         {
             var product = _productRepo.GetProductById(pid);
             if (product == null)

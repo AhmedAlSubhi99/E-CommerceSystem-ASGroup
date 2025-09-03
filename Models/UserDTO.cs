@@ -26,4 +26,13 @@ namespace E_CommerceSystem.Models
         public string Role { get; set; } = "Customer";
 
     }
+    public class LoginResponseDTO
+    {
+        public int UID { get; set; }
+        public string UName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string AccessToken { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+    }
 }
