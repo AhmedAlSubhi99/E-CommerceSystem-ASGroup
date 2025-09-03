@@ -21,6 +21,7 @@ namespace E_CommerceSystem.Services
         Order? GetOrderEntityById(int oid);
 
         IEnumerable<Order> GetAllOrders();
+        OrderSummaryDTO GetOrderSummary(int orderId);
 
 
         // Mutations

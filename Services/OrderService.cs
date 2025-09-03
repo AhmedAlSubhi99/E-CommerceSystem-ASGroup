@@ -16,7 +16,7 @@ namespace E_CommerceSystem.Services
         public OrderService(
             IOrderRepo orderRepo,
             IProductService productService,
-            IOrderProductsService orderProductsService, 
+            IOrderProductsService orderProductsService,
             ApplicationDbContext ctx,
             IMapper mapper)
         {
@@ -248,7 +248,7 @@ namespace E_CommerceSystem.Services
             if (order == null) return (false, "Order not found.");
 
             // Owner or Admin only
-            var ownerId = order.UID; 
+            var ownerId = order.UID;
             if (!isAdmin && ownerId != userId)
                 return (false, "You are not allowed to cancel this order.");
 
@@ -295,6 +295,34 @@ namespace E_CommerceSystem.Services
                 await tx.RollbackAsync();
                 throw; // will bubble to controller as 500; you can convert to (false,"...") if preferred
             }
+        }
+        public OrderSummaryDTO GetOrderSummary(int orderId)
+        {
+            var order = _ctx.Orders
+                .Include(o => o.user)
+                .Include(o => o.OrderProducts)
+                    .ThenInclude(op => op.product)
+                .FirstOrDefault(o => o.OID == orderId);
+
+            if (order == null)
+                return null;
+
+            return new OrderSummaryDTO
+            {
+                OrderId = order.OID,
+                CustomerName = order.user.UName,  
+                CreatedAt = order.OrderDate,
+                Status = order.Status,
+                Subtotal = order.OrderProducts.Sum(op => op.Quantity * op.product.Price),
+                Total = order.TotalAmount,  
+                Lines = order.OrderProducts.Select(op => new OrderLineDTO
+                {
+                    ProductId = op.PID,
+                    ProductName = op.product.ProductName,
+                    Quantity = op.Quantity,
+                    UnitPrice = op.product.Price
+                }).ToList()
+            };
         }
     }
 }
