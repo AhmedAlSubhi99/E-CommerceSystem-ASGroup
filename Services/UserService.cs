@@ -29,16 +29,10 @@ namespace E_CommerceSystem.Services
         public User? ValidateUser(string email, string password)
         {
             var user = _userRepo.GetByEmail(email);
-
             if (user == null) return null;
 
-            // If you have BCrypt hashing:
-            if (!BCrypt.Net.BCrypt.Verify(password, user.Password)) return null;
-
-            // Plaintext fallback (not secure, only if no hashing yet)
-            if (user.Password != password) return null;
-
-            return user;
+            //  Only BCrypt validation (no plaintext fallback)
+            return BCrypt.Net.BCrypt.Verify(password, user.Password) ? user : null;
         }
         public (string AccessToken, RefreshToken RefreshToken)? Login(string email, string password)
         {
