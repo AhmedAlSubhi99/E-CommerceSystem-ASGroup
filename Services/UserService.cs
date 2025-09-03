@@ -43,7 +43,7 @@ namespace E_CommerceSystem.Services
             var accessToken = GenerateJwtToken(user);
 
             // Generate Refresh Token
-            var refreshToken = GenerateRefreshToken();
+            var refreshToken = GenerateRefreshToken(user.UID);
             SaveRefreshToken(user.UID, refreshToken);
 
             return (accessToken, refreshToken);
@@ -86,21 +86,23 @@ namespace E_CommerceSystem.Services
             _userRepo.UpdateUser(user);
         }
 
-        public RefreshToken GenerateRefreshToken()
+        public RefreshToken GenerateRefreshToken(int userId)
         {
-            var randomBytes = new byte[64];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomBytes);
-
-            return new RefreshToken
+            var refreshToken = new RefreshToken
             {
-                Token = Convert.ToBase64String(randomBytes),
+                Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray()),
                 Expires = DateTime.UtcNow.AddDays(7),
-                Created = DateTime.UtcNow,
-                CreatedByIp = "system" 
+                UserId = userId
             };
+            _userRepo.AddRefreshToken(refreshToken);
+            return refreshToken;
         }
-
+        public RefreshToken? ValidateRefreshToken(string token)
+        {
+            var rt = _userRepo.GetRefreshToken(token);
+            if (rt == null || !rt.IsActive) return null;
+            return rt;
+        }
         public void SaveRefreshToken(int userId, RefreshToken token)
         {
             var user = _userRepo.GetById(userId);
@@ -121,7 +123,7 @@ namespace E_CommerceSystem.Services
             if (refresh != null)
             {
                 refresh.Revoked = DateTime.UtcNow;
-                _ctx.RefreshTokens.Update(refresh);   //  use DbContext not UserRepo
+                _ctx.RefreshTokens.Update(refresh);  
                 _ctx.SaveChanges();
             }
         }

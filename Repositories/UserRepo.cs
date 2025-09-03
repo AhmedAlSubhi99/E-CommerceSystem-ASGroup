@@ -115,16 +115,23 @@ namespace E_CommerceSystem.Repositories
             return _context.Users.FirstOrDefault(u => u.Email == email);
         }
 
-        public RefreshToken GetRefreshToken(string token)
+        public void AddRefreshToken(RefreshToken token)
         {
-            var refresh = _context.RefreshTokens
-                                  .Include(r => r.User)
-                                  .FirstOrDefault(r => r.Token == token);
+            _context.RefreshTokens.Add(token);
+            _context.SaveChanges();
+        }
 
-            if (refresh == null)
-                throw new KeyNotFoundException("Refresh token not found");
+        public RefreshToken? GetRefreshToken(string token) =>
+               _context.RefreshTokens.Include(r => r.User).FirstOrDefault(r => r.Token == token);
 
-            return refresh;
+        public void RevokeRefreshToken(string token)
+        {
+            var rt = _context.RefreshTokens.FirstOrDefault(r => r.Token == token);
+            if (rt != null)
+            {
+                rt.Revoked = DateTime.UtcNow;
+                _context.SaveChanges();
+            }
         }
 
         public void UpdateRefreshToken(RefreshToken token)

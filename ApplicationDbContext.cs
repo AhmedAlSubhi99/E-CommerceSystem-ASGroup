@@ -28,7 +28,7 @@ namespace E_CommerceSystem
             modelBuilder.Entity<RefreshToken>()
         .HasOne(r => r.User)
         .WithMany(u => u.RefreshTokens)
-        .HasForeignKey(r => r.UID)
+        .HasForeignKey(r => r.UserId)
         .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()

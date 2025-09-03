@@ -99,27 +99,19 @@ namespace E_CommerceSystem.Controllers
         // Login
         // -------------------------------
         [AllowAnonymous]
-        [HttpPost("Login")]
-        public IActionResult Login([FromBody] LoginDto loginDto)
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginDto dto)
         {
-            var user = _userService.ValidateUser(loginDto.Email, loginDto.Password);
-            if (user == null)
-                return Unauthorized("Invalid email or password");
+            var user = _userService.ValidateUser(dto.Email, dto.Password);
+            if (user == null) return Unauthorized("Invalid credentials");
 
-            var accessToken = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
-            var refreshToken = _userService.GenerateRefreshToken();
-            _userService.SaveRefreshToken(user.UID, refreshToken);
+            var jwt = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
 
-            //  Store in cookies
-            Response.Cookies.Append("AuthToken", accessToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(30)
-            });
+            // create refresh token
+            var refreshToken = _userService.GenerateRefreshToken(user.UID);
 
-            Response.Cookies.Append("RefreshToken", refreshToken.Token, new CookieOptions
+            // store refresh token in httpOnly cookie
+            Response.Cookies.Append("refreshToken", refreshToken.Token, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = true,
@@ -127,11 +119,7 @@ namespace E_CommerceSystem.Controllers
                 Expires = refreshToken.Expires
             });
 
-            var response = _mapper.Map<LoginResponseDTO>(user);
-            response.AccessToken = accessToken;
-            response.RefreshToken = refreshToken.Token;
-
-            return Ok(response);
+            return Ok(new { token = jwt });
         }
 
         // -------------------------------
@@ -174,44 +162,17 @@ namespace E_CommerceSystem.Controllers
         // Refresh Token
         // -------------------------------
         [AllowAnonymous]
-        [HttpPost("Refresh")]
+        [HttpPost("refresh")]
         public IActionResult Refresh()
         {
-            var refreshToken = Request.Cookies["RefreshToken"];
-            if (string.IsNullOrEmpty(refreshToken))
-                return Unauthorized("Refresh token missing");
+            if (!Request.Cookies.TryGetValue("refreshToken", out var token))
+                return Unauthorized("No refresh token");
 
-            var storedToken = _userService.GetRefreshToken(refreshToken);
-            if (storedToken == null || storedToken.IsExpired || storedToken.Revoked.HasValue)
-            {
-                return Unauthorized("Invalid or expired refresh token");
-            }
+            var rt = _userService.ValidateRefreshToken(token);
+            if (rt == null) return Unauthorized("Invalid refresh token");
 
-            var user = _userService.GetUserById(storedToken.UID);
-            if (user == null)
-                return Unauthorized("User not found");
-
-            var newAccessToken = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
-            var newRefreshToken = _userService.GenerateRefreshToken();
-            _userService.SaveRefreshToken(user.UID, newRefreshToken);
-
-            Response.Cookies.Append("AuthToken", newAccessToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(30)
-            });
-
-            Response.Cookies.Append("RefreshToken", newRefreshToken.Token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = newRefreshToken.Expires
-            });
-
-            return Ok(new { AccessToken = newAccessToken, RefreshToken = newRefreshToken.Token });
+            var jwt = GenerateJwtToken(rt.UserId.ToString(), rt.User.UName, rt.User.Role);
+            return Ok(new { token = jwt });
         }
     }
 }

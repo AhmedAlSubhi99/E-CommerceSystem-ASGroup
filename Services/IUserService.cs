@@ -12,8 +12,8 @@ namespace E_CommerceSystem.Services
         User GetUSer(string email, string password);
         User GetUserById(int uid);
         void UpdateUser(User user);
-
-        RefreshToken GenerateRefreshToken();
+        RefreshToken? ValidateRefreshToken(string token);
+        RefreshToken GenerateRefreshToken(int uid);
         void SaveRefreshToken(int userId, RefreshToken token);
         RefreshToken? GetRefreshToken(string token);
         void RevokeRefreshToken(string token);
