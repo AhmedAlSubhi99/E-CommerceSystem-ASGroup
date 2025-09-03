@@ -133,7 +133,7 @@ namespace E_CommerceSystem.Services
             product.OverallRating = Convert.ToDecimal(averageRating);
 
             var dto = _mapper.Map<ProductUpdateDTO>(product);
-            _productService.UpdateProduct(product.PID, dto, null);
+            _productService.UpdateProduct(product.PID, dto, null!);
 
         }
     }
