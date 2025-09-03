@@ -56,48 +56,36 @@ namespace E_CommerceSystem.Controllers
 
         }
 
-        [HttpDelete("DeleteReview/{reviewId:int}")]
-        public IActionResult DeleteReview([FromRoute] int reviewId)
+        [Authorize]
+        [HttpDelete("{reviewId:int}")]
+        public IActionResult DeleteReview(int reviewId)
         {
-    
-                var review = _reviewService.GetReviewById(reviewId);
-                if (review == null) return NotFound($"Review with ID {reviewId} not found.");
+            int userId = GetUserIdFromToken();
+            bool isAdmin = User.IsInRole("admin");
 
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken();
-                var uid = userId;
-
-                if (review.UID != uid)
-                    return BadRequest("You are not authorized to delete this review.");
-
-                _reviewService.DeleteReview(reviewId);
-                return Ok($"Review with ReviewId {reviewId} Deleted successfully.");
-
+            _reviewService.DeleteReview(reviewId, userId, isAdmin);
+            return NoContent();
         }
 
         [HttpPut("UpdateReview/{reviewId:int}")]
-        public IActionResult UpdateReview([FromRoute] int reviewId, [FromBody] ReviewDTO reviewDTO)
+        public IActionResult UpdateReview(int reviewId, [FromBody] ReviewDTO reviewDTO)
         {
+            if (reviewDTO == null) return BadRequest("Review data is required.");
 
-                if (reviewDTO == null)
-                    return BadRequest("Review data is required.");
+            var existing = _reviewService.GetReviewById(reviewId);
+            if (existing == null) return NotFound($"Review with ID {reviewId} not found.");
 
-                var existing = _reviewService.GetReviewById(reviewId);
-                if (existing == null)
-                    return NotFound($"Review with ID {reviewId} not found.");
+            var userId = GetUserIdFromToken();
+            if (existing.UID != userId)
+                return BadRequest("You are not authorized to update this review.");
 
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken();
-                var uid = userId;
+            //  Map ReviewDTO into existing Review entity
+            _mapper.Map(reviewDTO, existing);
 
+            //  Pass the entity to the service
+            _reviewService.UpdateReview(reviewId, reviewDTO);
 
-            if (existing.UID != uid)
-                    return BadRequest("You are not authorized to update this review.");
-
-                var toUpdate = _mapper.Map(reviewDTO, existing); // maps onto the loaded entity
-                _reviewService.UpdateReview(reviewId, toUpdate);
-
-                return Ok($"Review with ReviewId {reviewId} updated successfully.");
+            return Ok($"Review with ID {reviewId} updated successfully.");
         }
 
         // ---------------------------

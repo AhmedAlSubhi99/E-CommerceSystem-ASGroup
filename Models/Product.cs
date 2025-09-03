@@ -16,14 +16,14 @@ namespace E_CommerceSystem.Models
         public string? Description { get; set; }
 
         [Required]
-        [Column(TypeName = "decimal(18,2)")]   // Fix precision warning
+        [Column(TypeName = "decimal(18,2)")]   
         public decimal Price { get; set; }
 
         [Required]
         [Range(0, int.MaxValue)]
         public int StockQuantity { get; set; }   
 
-        [Column(TypeName = "decimal(3,2)")]     //  Ratings like 4.75
+        [Column(TypeName = "decimal(3,2)")]  
         public decimal OverallRating { get; set; }
 
         [JsonIgnore]

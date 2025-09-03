@@ -63,6 +63,19 @@ namespace E_CommerceSystem
                 e.Property(o => o.TotalAmount).HasPrecision(18, 2);
                 e.HasIndex(o => o.Status);
             });
+
+
+            modelBuilder.Entity<Order>()
+                .Property(o => o.TotalAmount)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.Price)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.OverallRating)
+                .HasColumnType("decimal(3,2)");
         }
 
     }
