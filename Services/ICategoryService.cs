@@ -4,10 +4,11 @@ namespace E_CommerceSystem.Services
 {
     public interface ICategoryService
     {
-        Task<IEnumerable<CategoryDTO>> GetAllAsync();
-        Task<CategoryDTO?> GetByIdAsync(int id);
-        Task<CategoryDTO> CreateAsync(CategoryCreateDto dto);
+        Task<IEnumerable<Category>> GetAllAsync();
+        Task<Category?> GetByIdAsync(int id);
+        Task<Category> CreateAsync(CategoryCreateDTO dto);
         Task<bool> UpdateAsync(int id, CategoryUpdateDto dto);
         Task<bool> DeleteAsync(int id);
+
     }
 }

@@ -17,42 +17,37 @@ public class CategoryService : ICategoryService
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<CategoryDTO>> GetAllAsync()
-    {
-        var entities = await _ctx.Categories.AsNoTracking().ToListAsync();
-        return _mapper.Map<IEnumerable<CategoryDTO>>(entities);
-    }
+    public async Task<IEnumerable<Category>> GetAllAsync() =>
+           await _ctx.Categories.AsNoTracking().ToListAsync();
 
-    public async Task<CategoryDTO?> GetByIdAsync(int id)
-    {
-        var entity = await _ctx.Categories.FindAsync(id);
-        return entity is null ? null : _mapper.Map<CategoryDTO>(entity);
-    }
+    public async Task<Category?> GetByIdAsync(int id) =>
+       await _ctx.Categories.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == id);
 
-    public async Task<CategoryDTO> CreateAsync(CategoryCreateDto dto)
+    public async Task<Category> CreateAsync(CategoryCreateDTO dto)
     {
         var entity = _mapper.Map<Category>(dto);
         _ctx.Categories.Add(entity);
         await _ctx.SaveChangesAsync();
-        return _mapper.Map<CategoryDTO>(entity);
+        return entity;
     }
 
     public async Task<bool> UpdateAsync(int id, CategoryUpdateDto dto)
     {
-        var entity = await _ctx.Categories.FindAsync(id);
-        if (entity is null) return false;
+        var existing = await _ctx.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
+        if (existing is null) return false;
 
-        _mapper.Map(dto, entity);       // copies fields onto tracked entity
+        _mapper.Map(dto, existing); // maps Name/Description
         await _ctx.SaveChangesAsync();
         return true;
     }
 
+
     public async Task<bool> DeleteAsync(int id)
     {
-        var entity = await _ctx.Categories.FindAsync(id);
-        if (entity is null) return false;
+        var existing = await _ctx.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
+        if (existing is null) return false;
 
-        _ctx.Categories.Remove(entity);
+        _ctx.Categories.Remove(existing);
         await _ctx.SaveChangesAsync();
         return true;
     }

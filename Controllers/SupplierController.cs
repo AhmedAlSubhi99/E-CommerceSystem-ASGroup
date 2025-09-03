@@ -1,54 +1,57 @@
-﻿using E_CommerceSystem.Models;
+﻿// Controllers/SupplierController.cs
+using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace E_CommerceSystem.Controllers
+[ApiController]
+[Route("api/[controller]")]
+public class SupplierController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class SupplierController : ControllerBase
+    private readonly ISupplierService _service;
+    private readonly IMapper _mapper;
+    public SupplierController(ISupplierService service, IMapper mapper)
+    { _service = service; _mapper = mapper; }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<SupplierDTO>>> GetAll()
     {
-        private readonly ISupplierService _service;
-        public SupplierController(ISupplierService service) => _service = service;
-
-        [HttpGet]
-        public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var item = await _service.GetByIdAsync(id);
-            return item == null ? NotFound() : Ok(item);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Create(SupplierCreateDto dto)
-        {
-            var result = await _service.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = result.SupplierId }, result);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, SupplierUpdateDto dto)
-        {
-            var updated = await _service.UpdateAsync(id, dto);
-            return updated ? NoContent() : NotFound();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            try
-            {
-                var ok = await _service.DeleteAsync(id);
-                return ok ? NoContent() : NotFound();
-            }
-            catch (DbUpdateException)
-            {
-                return Conflict("Cannot delete because products reference this record.");
-            }
-        }
+        var items = await _service.GetAllAsync();
+        return Ok(_mapper.Map<IEnumerable<SupplierDTO>>(items));
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<SupplierDTO>> GetById(int id)
+    {
+        var sup = await _service.GetByIdAsync(id);
+        if (sup is null) return NotFound($"Supplier {id} not found.");
+        return Ok(_mapper.Map<SupplierDTO>(sup));
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<SupplierDTO>> Create([FromBody] SupplierCreateDto dto)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var created = await _service.CreateAsync(dto);
+        var readDto = _mapper.Map<SupplierDTO>(created);
+
+        return CreatedAtAction(nameof(GetById), new { id = readDto.SupplierId }, readDto);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] SupplierUpdateDto dto)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var ok = await _service.UpdateAsync(id, dto);
+        return ok ? NoContent() : NotFound($"Supplier {id} not found.");
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var ok = await _service.DeleteAsync(id);
+        return ok ? NoContent() : NotFound($"Supplier {id} not found.");
+    }
 }

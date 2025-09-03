@@ -2,14 +2,7 @@
 
 namespace E_CommerceSystem.Models
 {
-    public class CategoryDTO
-    {
-        public int CategoryId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
-    }
-
-    public class CategoryCreateDto
+    public  class CategoryCreateDTO
     {
         [Required, StringLength(100)]
         public string Name { get; set; } = string.Empty;
@@ -17,6 +10,13 @@ namespace E_CommerceSystem.Models
         [StringLength(500)]
         public string? Description { get; set; }
     }
+    public class CategoryUpdateDto : CategoryCreateDTO { }
+    public class CategoryDTO
+    {
+        public int CategoryId { get; set; }
+        public string Name { get; set; }
+        public string? Description { get; set; }
+    }
+    
 
-    public class CategoryUpdateDto : CategoryCreateDto { }
 }

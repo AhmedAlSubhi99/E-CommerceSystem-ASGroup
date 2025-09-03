@@ -1,47 +1,54 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Services
 {
     public class SupplierService : ISupplierService
     {
         private readonly ISupplierRepo _repo;
+        private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
-        public SupplierService(ISupplierRepo repo, IMapper mapper)
+        public SupplierService(ISupplierRepo repo, ApplicationDbContext ctx, IMapper mapper)
         {
             _repo = repo;
+            _ctx = ctx;
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<SupplierDTO>> GetAllAsync() =>
-            _mapper.Map<IEnumerable<SupplierDTO>>(await _repo.GetAllAsync());
+        public async Task<IEnumerable<Supplier>> GetAllAsync() =>
+           await _ctx.Suppliers.AsNoTracking().ToListAsync();
 
-        public async Task<SupplierDTO?> GetByIdAsync(int id)
-        {
-            var entity = await _repo.GetByIdAsync(id);
-            return entity == null ? null : _mapper.Map<SupplierDTO>(entity);
-        }
 
-        public async Task<SupplierDTO> CreateAsync(SupplierCreateDto dto)
+        public async Task<Supplier?> GetByIdAsync(int id) =>
+          await _ctx.Suppliers.AsNoTracking().FirstOrDefaultAsync(x => x.SupplierId == id);
+
+        public async Task<Supplier> CreateAsync(SupplierCreateDto dto)
         {
             var entity = _mapper.Map<Supplier>(dto);
-            await _repo.AddAsync(entity);
-            return _mapper.Map<SupplierDTO>(entity);
+            _ctx.Suppliers.Add(entity);
+            await _ctx.SaveChangesAsync();
+            return entity;
         }
 
         public async Task<bool> UpdateAsync(int id, SupplierUpdateDto dto)
         {
-            var entity = await _repo.GetByIdAsync(id);
-            if (entity == null) return false;
-            _mapper.Map(dto, entity);
-            await _repo.UpdateAsync(entity);
+            var existing = await _ctx.Suppliers.FirstOrDefaultAsync(x => x.SupplierId == id);
+            if (existing is null) return false;
+
+            _mapper.Map(dto, existing);
+            await _ctx.SaveChangesAsync();
             return true;
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            await _repo.DeleteAsync(id);
+            var existing = await _ctx.Suppliers.FirstOrDefaultAsync(x => x.SupplierId == id);
+            if (existing is null) return false;
+
+            _ctx.Suppliers.Remove(existing);
+            await _ctx.SaveChangesAsync();
             return true;
         }
     }

@@ -9,7 +9,7 @@ public class MappingProfile : Profile
         // Category 
         // -----------------
         CreateMap<Category, CategoryDTO>().ReverseMap();
-        CreateMap<CategoryCreateDto, Category>();
+        CreateMap<CategoryCreateDTO, Category>();
         CreateMap<CategoryUpdateDto, Category>();
 
         // -----------------
