@@ -76,6 +76,10 @@ namespace E_CommerceSystem
             modelBuilder.Entity<Product>()
                 .Property(p => p.OverallRating)
                 .HasColumnType("decimal(3,2)");
+
+            modelBuilder.Entity<Review>()
+    .HasIndex(r => new { r.UID, r.PID })
+    .IsUnique();
         }
 
     }
