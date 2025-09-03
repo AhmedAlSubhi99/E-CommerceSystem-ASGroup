@@ -104,14 +104,28 @@ namespace E_CommerceSystem.Controllers
             _productService.DeleteProduct(id);
             return NoContent();
         }
-        public bool Exists(int id)
+        // -------------------------------
+        // Check if Category exists
+        // -------------------------------
+        [AllowAnonymous]
+        [HttpGet("ExistsCategory/{id}")]
+        public IActionResult ExistsCategory(int id)
         {
-            return _ctx.Categories.Any(c => c.CategoryId == id);
+            var exists = _ctx.Categories.Any(c => c.CategoryId == id);
+            return Ok(exists);
         }
-        public bool Existss(int id)
+
+        // -------------------------------
+        // Check if Supplier exists
+        // -------------------------------
+        [AllowAnonymous]
+        [HttpGet("ExistsSupplier/{id}")]
+        public IActionResult ExistsSupplier(int id)
         {
-            return _ctx.Suppliers.Any(s => s.SupplierId == id);
+            var exists = _ctx.Suppliers.Any(s => s.SupplierId == id);
+            return Ok(exists);
         }
+
 
     }
 }
