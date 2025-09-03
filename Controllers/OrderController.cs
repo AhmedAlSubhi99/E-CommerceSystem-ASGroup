@@ -127,7 +127,9 @@ namespace E_CommerceSystem.Controllers
         {
             int userId = GetUserId();
             var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
-            return Ok(_mapper.Map<OrdersOutputDTO>(updated));
+            return updated != null
+                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
+                : BadRequest("Unable to mark as paid.");
         }
 
         [Authorize(Roles = "admin,manager")]
@@ -135,8 +137,10 @@ namespace E_CommerceSystem.Controllers
         public IActionResult MarkShipped(int orderId)
         {
             int userId = GetUserId();
-            var updated = _orderService.SetStatus(orderId, OrderStatus.Shipped, userId, true);
-            return Ok(_mapper.Map<OrdersOutputDTO>(updated));
+            var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
+            return updated != null
+                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
+                : BadRequest("Unable to mark as Ship.");
         }
 
         [Authorize(Roles = "admin,manager")]
@@ -144,8 +148,10 @@ namespace E_CommerceSystem.Controllers
         public IActionResult MarkDelivered(int orderId)
         {
             int userId = GetUserId();
-            var updated = _orderService.SetStatus(orderId, OrderStatus.Delivered, userId, true);
-            return Ok(_mapper.Map<OrdersOutputDTO>(updated));
+            var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
+            return updated != null
+                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
+                : BadRequest("Unable to mark as Deliver.");
         }
 
         // ---------------------------
