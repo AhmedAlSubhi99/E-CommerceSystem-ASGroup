@@ -56,10 +56,16 @@ namespace E_CommerceSystem.Services
                     page.Size(PageSizes.A4);
                     page.Margin(40);
 
+                    // ---------------------------
+                    // Header
+                    // ---------------------------
                     page.Header()
                         .Text($"Invoice #{order.OrderId}")
                         .SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
 
+                    // ---------------------------
+                    // Content
+                    // ---------------------------
                     page.Content().Column(col =>
                     {
                         col.Spacing(10);
@@ -68,16 +74,18 @@ namespace E_CommerceSystem.Services
                         col.Item().Text($"Date: {order.OrderDate:yyyy-MM-dd}").FontSize(12);
                         col.Item().LineHorizontal(1);
 
+                        // Product Table
                         col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(cols =>
                             {
-                                cols.RelativeColumn(3);
-                                cols.RelativeColumn(1);
-                                cols.RelativeColumn(1);
-                                cols.RelativeColumn(1);
+                                cols.RelativeColumn(3); // Product
+                                cols.RelativeColumn(1); // Qty
+                                cols.RelativeColumn(1); // Price
+                                cols.RelativeColumn(1); // Total
                             });
 
+                            // Header row
                             table.Header(header =>
                             {
                                 header.Cell().Text("Product").Bold();
@@ -86,6 +94,7 @@ namespace E_CommerceSystem.Services
                                 header.Cell().Text("Total").Bold();
                             });
 
+                            // Data rows
                             foreach (var item in order.Lines)
                             {
                                 table.Cell().Text(item.ProductName);
@@ -97,11 +106,15 @@ namespace E_CommerceSystem.Services
 
                         col.Item().LineHorizontal(1);
 
+                        // Total amount
                         col.Item().AlignRight()
                             .Text($"Total: ${order.TotalAmount:F2}")
                             .Bold().FontSize(14);
                     });
 
+                    // ---------------------------
+                    // Footer
+                    // ---------------------------
                     page.Footer()
                         .AlignCenter()
                         .Text("Thank you for your purchase!")
