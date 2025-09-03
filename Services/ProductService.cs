@@ -52,21 +52,25 @@ namespace E_CommerceSystem.Services
             return product;
         }
 
-        public Product AddProduct(ProductDTO productInput, IFormFile? imageFile)
+        public void AddProduct(Product product, IFormFile imageFile)
         {
-            var product = _mapper.Map<Product>(productInput);
-
-            if (imageFile is not null && imageFile.Length > 0)
+            if (imageFile != null && imageFile.Length > 0)
             {
-                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
-                var url = UploadImageAsync(0, imageFile, uploadPath).Result;
-                product.ImageUrl = url;
+                var fileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
+                var path = Path.Combine("wwwroot/images", fileName);
+
+                using (var stream = new FileStream(path, FileMode.Create))
+                {
+                    imageFile.CopyTo(stream);
+                }
+
+                product.ImageUrl = "/images/" + fileName;
             }
 
             _ctx.Products.Add(product);
             _ctx.SaveChanges();
-            return product;
         }
+
 
         public async Task<string?> UploadImageAsync(int productId, IFormFile file, string uploadPath)
         {
@@ -86,22 +90,28 @@ namespace E_CommerceSystem.Services
             return $"/uploads/products/{fileName}";
         }
 
-        public Product UpdateProduct(int productId, ProductDTO productInput, IFormFile? imageFile)
+        public void UpdateProduct(int productId, ProductUpdateDTO dto, IFormFile imageFile)
         {
             var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
-            if (product == null) throw new KeyNotFoundException($"Product {productId} not found.");
+            if (product == null) throw new ArgumentException("Product not found");
 
-            _mapper.Map(productInput, product);
+            // map DTO
+            _mapper.Map(dto, product);
 
-            if (imageFile is not null && imageFile.Length > 0)
+            if (imageFile != null && imageFile.Length > 0)
             {
-                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
-                var url = UploadImageAsync(productId, imageFile, uploadPath).Result;
-                product.ImageUrl = url;
+                var fileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
+                var path = Path.Combine("wwwroot/images", fileName);
+
+                using (var stream = new FileStream(path, FileMode.Create))
+                {
+                    imageFile.CopyTo(stream);
+                }
+
+                product.ImageUrl = "/images/" + fileName;
             }
 
             _ctx.SaveChanges();
-            return product;
         }
 
         public Product GetProductByName(string productName)
@@ -148,6 +158,13 @@ namespace E_CommerceSystem.Services
 
             _productRepo.Update(p);
             _productRepo.SaveChanges();
+        }
+        public void DeleteProduct(int productId)
+        {
+            var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
+            if (product == null) throw new KeyNotFoundException($"Product {productId} not found.");
+            _ctx.Products.Remove(product);
+            _ctx.SaveChanges();
         }
 
     }

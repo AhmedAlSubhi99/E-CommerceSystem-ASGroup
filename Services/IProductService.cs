@@ -4,8 +4,9 @@ namespace E_CommerceSystem.Services
 {
     public interface IProductService
     {
-        Product AddProduct(ProductDTO productInput, IFormFile? imageFile);
-        Product UpdateProduct(int productId, ProductDTO productInput, IFormFile? imageFile);
+        void AddProduct(Product product, IFormFile imageFile);
+        void UpdateProduct(int productId, ProductUpdateDTO dto, IFormFile imageFile);
+        void DeleteProduct(int productId);
         IEnumerable<Product> GetProducts(int pageNumber, int pageSize, string? name = null, decimal? minPrice = null, decimal? maxPrice = null);
         Product GetProductById(int pid);
         Product GetProductByName(string productName);
