@@ -15,6 +15,7 @@ namespace E_CommerceSystem.Models
 
         [ForeignKey("user")]
         public int UID { get; set; }
+       
         public virtual User? user { get; set; }
 
         [JsonIgnore]
@@ -22,8 +23,6 @@ namespace E_CommerceSystem.Models
 
         [Required]
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
-
-        public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
         public DateTime? StatusUpdatedAtUtc { get; set; }
 
 

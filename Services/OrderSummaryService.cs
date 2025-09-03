@@ -73,5 +73,47 @@ namespace E_CommerceSystem.Services
                 .ProjectTo<OrderSummaryDTO>(_mapper.ConfigurationProvider)
                 .FirstOrDefaultAsync();
         }
+        public AdminOrderSummaryDTO GetSummary(DateTime? from = null, DateTime? to = null)
+        {
+            var query = _ctx.Orders
+                .Include(o => o.OrderProducts).ThenInclude(i => i.product)
+                .Include(o => o.user)
+                .AsQueryable();
+
+            if (from != null) query = query.Where(o => o.OrderDate >= from);
+            if (to != null) query = query.Where(o => o.OrderDate <= to);
+
+            var orders = query.ToList();
+
+            return new AdminOrderSummaryDTO
+            {
+                TotalOrders = orders.Count,
+                TotalRevenue = orders.Sum(o => o.TotalAmount),
+                TotalItemsSold = orders.Sum(o => o.OrderProducts.Sum(i => i.Quantity)),
+                TopProducts = orders
+                    .SelectMany(o => o.OrderProducts)
+                    .GroupBy(i => new { i.PID, i.product.ProductName })
+                    .Select(g => new ProductSummaryDTO
+                    {
+                        ProductId = g.Key.PID,
+                        Name = g.Key.ProductName,
+                        QuantitySold = g.Sum(i => i.Quantity)
+                    })
+                    .OrderByDescending(p => p.QuantitySold)
+                    .Take(10)
+                    .ToList(),
+                TopCustomers = orders
+                    .GroupBy(o => new { o.UID, o.user.UName })
+                    .Select(g => new CustomerSummaryDTO
+                    {
+                        UserId = g.Key.UID,
+                        Name = g.Key.UName,
+                        TotalSpent = g.Sum(o => o.TotalAmount)
+                    })
+                    .OrderByDescending(c => c.TotalSpent)
+                    .Take(10)
+                    .ToList()
+            };
+        }
     }
 }

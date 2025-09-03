@@ -13,11 +13,13 @@ namespace E_CommerceSystem.Controllers
     public class OrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
+        private readonly IOrderSummaryService _orderSummaryService;
         private readonly IMapper _mapper;
 
-        public OrderController(IOrderService orderService, IMapper mapper)
+        public OrderController(IOrderService orderService, IOrderSummaryService orderSummaryService, IMapper mapper)
         {
             _orderService = orderService;
+            _orderSummaryService = orderSummaryService;
             _mapper = mapper;
         }
 
@@ -176,5 +178,20 @@ namespace E_CommerceSystem.Controllers
         [HttpPost("{orderId:int}/Cancel")]
         public IActionResult cancel(int orderId) =>
             Ok(_orderService.SetStatus(orderId, OrderStatus.Cancelled, int.Parse(GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", ""))), User.IsInRole("admin")));
+        [HttpGet("{orderId:int}/details")]
+        public ActionResult<OrderSummaryDTO> GetOrderDetails(int orderId)
+        {
+            var details = _orderService.GetOrderDetails(orderId);
+            return details is null ? NotFound() : Ok(details);
+        }
+
+        // For admin to view aggregated summary
+        [HttpGet("summary")]
+        [Authorize(Roles = "admin")]
+        public ActionResult<AdminOrderSummaryDTO> GetSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        {
+            var summary = _orderSummaryService.GetSummary(from, to);
+            return Ok(summary);
+        }
     }
 }

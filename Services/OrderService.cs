@@ -189,6 +189,32 @@ namespace E_CommerceSystem.Services
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
         }
+        public async Task<OrderSummaryDTO?> GetOrderDetails(int orderId)
+        {
+            var order = _ctx.Orders
+                .Include(o => o.OrderProducts).ThenInclude(i => i.product)
+                .Include(o => o.user)
+                .FirstOrDefault(o => o.OID == orderId);
+
+            if (order is null) return null;
+
+            return new OrderSummaryDTO
+            {
+                OrderId = order.OID,
+                CustomerName = order.user.UName,
+                CreatedAt = order.OrderDate,
+                Status = order.Status.ToString(),
+                Subtotal = order.OrderProducts.Sum(i => i.product.Price * i.Quantity),
+                Total = order.TotalAmount,
+                Lines = order.OrderProducts.Select(i => new OrderLineDTO
+                {
+                    ProductId = i.PID,
+                    ProductName = i.product.ProductName,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.product.Price
+                }).ToList()
+            };
+        }
         public async Task<(bool ok, string message)> CancelOrderAsync(int orderId, int userId, bool isAdmin)
         {
             var order = await _orderRepo.GetOrderWithDetailsAsync(orderId);
