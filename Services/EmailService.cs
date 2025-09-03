@@ -1,59 +1,61 @@
-﻿using System.Net;
-using System.Net.Mail;
+﻿using E_CommerceSystem.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using System.Net;
+using System.Net.Mail;
 
 namespace E_CommerceSystem.Services
 {
     public class EmailService : IEmailService
     {
-        private readonly IConfiguration _config;
+        private readonly EmailSettings _settings;
 
-        public EmailService(IConfiguration config)
+        public EmailService(IOptions<EmailSettings> options)
         {
-            _config = config;
+            _settings = options.Value;
         }
 
-        private SmtpClient CreateClient()
+        public async Task SendEmailAsync(string to, string subject, string body)
         {
-            var smtpSettings = _config.GetSection("Smtp");
-            return new SmtpClient
+            using var client = new SmtpClient(_settings.SmtpServer, _settings.Port)
             {
-                Host = smtpSettings["Host"],
-                Port = int.Parse(smtpSettings["Port"]),
-                EnableSsl = bool.Parse(smtpSettings["EnableSsl"]),
-                Credentials = new NetworkCredential(
-                    smtpSettings["User"], smtpSettings["Password"])
+                Credentials = new NetworkCredential(_settings.Username, _settings.Password),
+                EnableSsl = _settings.UseSsl
             };
-        }
 
-        public void SendOrderPlacedEmail(string toEmail, int orderId, decimal total)
-        {
-            var message = new MailMessage
+            var mailMessage = new MailMessage
             {
-                From = new MailAddress(_config["Smtp:User"], "E-Commerce System"),
-                Subject = $"Order #{orderId} Placed",
-                Body = $"Your order #{orderId} has been placed successfully. Total: {total:C}.",
-                IsBodyHtml = false
+                From = new MailAddress(_settings.SenderEmail, _settings.SenderName),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
             };
-            message.To.Add(toEmail);
 
-            using var client = CreateClient();
-            client.Send(message);
+            mailMessage.To.Add(to);
+
+            await client.SendMailAsync(mailMessage);
         }
-
-        public void SendOrderCancelledEmail(string toEmail, int orderId)
+        public async Task SendOrderPlacedEmail(string to, int orderId, decimal totalAmount)
         {
-            var message = new MailMessage
-            {
-                From = new MailAddress(_config["Smtp:User"], "E-Commerce System"),
-                Subject = $"Order #{orderId} Cancelled",
-                Body = $"Your order #{orderId} has been cancelled. If this wasn’t you, please contact support.",
-                IsBodyHtml = false
-            };
-            message.To.Add(toEmail);
+            var subject = $"Order #{orderId} Confirmation";
+            var body = $@"
+        <h3>Thank you for your order!</h3>
+        <p>Your order <strong>#{orderId}</strong> has been placed successfully.</p>
+        <p>Total Amount: <strong>{totalAmount:C}</strong></p>
+        <p>We’ll notify you once it’s shipped.</p>";
 
-            using var client = CreateClient();
-            client.Send(message);
+            await SendEmailAsync(to, subject, body);
         }
+
+        public async Task SendOrderCancelledEmail(string to, int orderId)
+        {
+            var subject = $"Order #{orderId} Cancelled";
+            var body = $@"
+        <h3>Order Cancelled</h3>
+        <p>Your order <strong>#{orderId}</strong> has been cancelled as requested.</p>";
+
+            await SendEmailAsync(to, subject, body);
+        }
+
     }
 }

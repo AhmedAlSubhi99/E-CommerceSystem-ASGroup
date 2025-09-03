@@ -163,7 +163,7 @@ namespace E_CommerceSystem.Services
         public void AddOrder(Order order) => _orderRepo.AddOrder(order);
         public void UpdateOrder(Order order) => _orderRepo.UpdateOrder(order);
 
-        public void PlaceOrder(List<OrderItemDTO> items, int uid)
+        public async Task PlaceOrder(List<OrderItemDTO> items, int uid)
         {
             if (items == null || items.Count == 0)
                 throw new ArgumentException("Order items cannot be empty.", nameof(items));
@@ -219,8 +219,12 @@ namespace E_CommerceSystem.Services
             // Send email after success
             var user = _ctx.Users.FirstOrDefault(u => u.UID == uid);
             if (user != null)
-                _emailService.SendOrderPlacedEmail(user.Email, order.OID, totalOrderPrice);
+            {
+ 
+                    await _emailService.SendOrderPlacedEmail(user.Email, order.OID, totalOrderPrice);
+            }
         }
+
 
         public async Task<OrderSummaryDTO?> GetOrderDetails(int orderId)
         {
@@ -246,45 +250,21 @@ namespace E_CommerceSystem.Services
                 }).ToList()
             };
         }
-        public void CancelOrder(int orderId, int userId)
+        public async Task CancelOrder(int orderId, int uid)
         {
-            var order = _ctx.Orders
-                .Include(o => o.OrderProducts).ThenInclude(op => op.product)
-                .Include(o => o.user)
-                .FirstOrDefault(o => o.OID == orderId && o.UID == userId);
-
+            var order = _ctx.Orders.FirstOrDefault(o => o.OID == orderId && o.UID == uid);
             if (order == null)
-                throw new ArgumentException("Order not found");
-
-            if (order.Status == OrderStatus.Cancelled)
-                throw new InvalidOperationException("Order already cancelled");
-
-            // Restore stock with concurrency protection
-            foreach (var item in order.OrderProducts)
-            {
-                item.product.StockQuantity += item.Quantity;
-
-                try
-                {
-                    _ctx.Products.Update(item.product);
-                    _ctx.SaveChanges();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    throw new InvalidOperationException(
-                        $"Concurrency conflict while restoring stock for {item.product.ProductName}. Please reload and try again.");
-                }
-            }
+                throw new Exception("Order not found");
 
             order.Status = OrderStatus.Cancelled;
-            order.StatusUpdatedAtUtc = DateTime.UtcNow;
+            _ctx.Orders.Update(order);
+            await _ctx.SaveChangesAsync();
 
-            _ctx.SaveChanges();
-
-            // Send cancellation email
-            if (order.user != null)
+            var user = _ctx.Users.FirstOrDefault(u => u.UID == uid);
+            if (user != null)
             {
-                _emailService.SendOrderCancelledEmail(order.user.Email, order.OID);
+                    await _emailService.SendOrderCancelledEmail(user.Email, orderId);
+
             }
         }
         public OrderSummaryDTO GetOrderSummary(int orderId)

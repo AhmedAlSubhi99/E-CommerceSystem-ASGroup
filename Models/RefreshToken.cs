@@ -3,14 +3,17 @@
     public class RefreshToken
     {
         public int Id { get; set; }
-        public int UserId { get; set; }  
-        public string Token { get; set; } = string.Empty;
+        public string Token { get; set; }
         public DateTime Expires { get; set; }
-        public bool IsRevoked { get; set; } = false;
-
         public bool IsExpired => DateTime.UtcNow >= Expires;
+        public DateTime Created { get; set; }
+        public string CreatedByIp { get; set; }
+        public DateTime? Revoked { get; set; }
+        public string RevokedByIp { get; set; }
+        public string ReplacedByToken { get; set; }
 
-        //  Navigation property
+        // FK to User
+        public int UID { get; set; }
         public User User { get; set; }
     }
 }

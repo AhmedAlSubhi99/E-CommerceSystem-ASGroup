@@ -1,5 +1,6 @@
 
 using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -7,8 +8,8 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
 using QuestPDF.Infrastructure;
+using System.Text;
 
 namespace E_CommerceSystem
 {
@@ -51,6 +52,9 @@ namespace E_CommerceSystem
             builder.Services.AddScoped<ISupplierService, SupplierService>();
 
             builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
+            builder.Services.Configure<EmailSettings>(
+                builder.Configuration.GetSection("EmailSettings"));
 
             builder.Services.AddScoped<IEmailService, EmailService>();
 

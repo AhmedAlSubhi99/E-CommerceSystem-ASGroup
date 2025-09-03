@@ -31,10 +31,10 @@ namespace E_CommerceSystem.Services
         bool UpdateStatus(int orderId, OrderStatus newStatus);
 
         // Place order (keep one signature)
-        void PlaceOrder(List<OrderItemDTO> items, int uid);
+        Task PlaceOrder(List<OrderItemDTO> items, int uid);
 
         // Cancel an order (owner or admin). Restores stock. Returns (ok, message).
-        public void CancelOrder(int orderId, int userId);
+        Task CancelOrder(int orderId, int uid);
         Task<OrderSummaryDTO?> GetOrderDetails(int orderId);
         OrderDTO SetStatus(int orderId, OrderStatus newStatus, int actorUserId, bool isAdminOrManager);
     }

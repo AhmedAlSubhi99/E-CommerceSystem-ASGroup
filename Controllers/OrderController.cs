@@ -33,14 +33,9 @@ namespace E_CommerceSystem.Controllers
         // Place Order
         // ---------------------------
         [HttpPost("PlaceOrder")]
-        public IActionResult PlaceOrder([FromBody] List<OrderItemDTO> items)
+        public async Task<IActionResult> PlaceOrder([FromBody] List<OrderItemDTO> items, int uid)
         {
-            if (items == null || !items.Any())
-                return BadRequest("Order items cannot be empty.");
-
-            int uid = GetUserId();
-            _orderService.PlaceOrder(items, uid);
-
+            await _orderService.PlaceOrder(items, uid);
             return Ok("Order placed successfully.");
         }
 
@@ -87,16 +82,11 @@ namespace E_CommerceSystem.Controllers
         // ---------------------------
         // Cancel Order
         // ---------------------------
-        [HttpPost("{orderId:int}/Cancel")]
-        public IActionResult Cancel(int orderId)
+        [HttpPost("CancelOrder/{orderId}")]
+        public async Task<IActionResult> CancelOrder(int orderId, int uid)
         {
-            int userId = GetUserId();
-            bool isAdmin = User.IsInRole("admin");
-
-            var updated = _orderService.SetStatus(orderId, OrderStatus.Cancelled, userId, isAdmin);
-            return updated != null
-                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
-                : BadRequest("Unable to cancel order.");
+            await _orderService.CancelOrder(orderId, uid);
+            return Ok("Order cancelled successfully.");
         }
 
         // ---------------------------

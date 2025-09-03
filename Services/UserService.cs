@@ -12,11 +12,13 @@ namespace E_CommerceSystem.Services
     {
         private readonly IUserRepo _userRepo;
         private readonly IConfiguration _configuration;
+        private readonly ApplicationDbContext _ctx; 
 
-        public UserService(IUserRepo userRepo, IConfiguration configuration)
+        public UserService(IUserRepo userRepo, IConfiguration configuration, ApplicationDbContext ctx)
         {
             _userRepo = userRepo;
             _configuration = configuration;
+            _ctx = ctx;
         }
 
 
@@ -92,10 +94,16 @@ namespace E_CommerceSystem.Services
 
         public RefreshToken GenerateRefreshToken()
         {
+            var randomBytes = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+
             return new RefreshToken
             {
-                Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-                Expires = DateTime.UtcNow.AddDays(7) // valid for 7 days
+                Token = Convert.ToBase64String(randomBytes),
+                Expires = DateTime.UtcNow.AddDays(7),
+                Created = DateTime.UtcNow,
+                CreatedByIp = "system" 
             };
         }
 
@@ -118,8 +126,9 @@ namespace E_CommerceSystem.Services
             var refresh = _userRepo.GetRefreshToken(token);
             if (refresh != null)
             {
-                refresh.IsRevoked = true;
-                _userRepo.UpdateRefreshToken(refresh);
+                refresh.Revoked = DateTime.UtcNow;
+                _ctx.RefreshTokens.Update(refresh);   //  use DbContext not UserRepo
+                _ctx.SaveChanges();
             }
         }
         public string GenerateJwtToken(User user)

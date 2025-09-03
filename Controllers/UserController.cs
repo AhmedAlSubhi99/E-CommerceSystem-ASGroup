@@ -182,10 +182,12 @@ namespace E_CommerceSystem.Controllers
                 return Unauthorized("Refresh token missing");
 
             var storedToken = _userService.GetRefreshToken(refreshToken);
-            if (storedToken == null || storedToken.IsExpired || storedToken.IsRevoked)
-                return Unauthorized("Invalid refresh token");
+            if (storedToken == null || storedToken.IsExpired || storedToken.Revoked.HasValue)
+            {
+                return Unauthorized("Invalid or expired refresh token");
+            }
 
-            var user = _userService.GetUserById(storedToken.UserId);
+            var user = _userService.GetUserById(storedToken.UID);
             if (user == null)
                 return Unauthorized("User not found");
 

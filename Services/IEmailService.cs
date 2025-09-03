@@ -2,7 +2,8 @@
 {
     public interface IEmailService
     {
-        void SendOrderPlacedEmail(string toEmail, int orderId, decimal total);
-        void SendOrderCancelledEmail(string toEmail, int orderId);
+        Task SendEmailAsync(string to, string subject, string body);
+        Task SendOrderPlacedEmail(string to, int orderId, decimal totalAmount);
+        Task SendOrderCancelledEmail(string to, int orderId);
     }
 }
