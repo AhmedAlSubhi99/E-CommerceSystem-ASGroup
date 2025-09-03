@@ -4,7 +4,7 @@ namespace E_CommerceSystem.Services
 {
     public interface IReviewService
     {
-        ReviewDTO AddReview(int uid, int pid, ReviewDTO reviewDTO);
+        Review AddReview(int userId, int productId, ReviewDTO dto);
         bool DeleteReview(int rid);
         IEnumerable<Review> GetAllReviews(int pageNumber, int pageSize, int pid);
         ReviewDTO? GetReviewById(int rid);

@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Services
 {
@@ -10,6 +11,7 @@ namespace E_CommerceSystem.Services
         private readonly IProductService _productService;
         private readonly IOrderService _orderService;
         private readonly IOrderProductsService _orderProductsService;
+        private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
         public ReviewService(
@@ -17,26 +19,24 @@ namespace E_CommerceSystem.Services
             IProductService productService,
             IOrderProductsService orderProductsService,
             IOrderService orderService,
+            ApplicationDbContext ctx,
             IMapper mapper)
         {
             _reviewRepo = reviewRepo;
             _productService = productService;
             _orderProductsService = orderProductsService;
             _orderService = orderService;
+            _ctx = ctx;
             _mapper = mapper;
         }
 
         // Keep return type as in entities.
-        public IEnumerable<Review> GetAllReviews(int pageNumber, int pageSize, int pid)
+        public IEnumerable<Review> GetAllReviews(int pageNumber, int pageSize, int productId)
         {
-            var query = _reviewRepo.GetReviewByProductId(pid);
-
-            var pagedReviews = query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return pagedReviews;
+            return _reviewRepo.GetReviewByProductId(productId)
+                              .Skip((pageNumber - 1) * pageSize)
+                              .Take(pageSize)
+                              .ToList();
         }
 
         public Review GetReviewsByProductIdAndUserId(int pid, int uid)
@@ -54,44 +54,36 @@ namespace E_CommerceSystem.Services
         public IEnumerable<Review> GetReviewByProductId(int pid)
             => _reviewRepo.GetReviewByProductId(pid);
 
-        // === Uses AutoMapper (DTO -> Entity -> DTO) ===
-        public ReviewDTO AddReview(int uid, int pid, ReviewDTO reviewDTO)
+        public Review AddReview(int userId, int productId, ReviewDTO dto)
         {
-            // 1) Verify the user purchased this product
-            var orders = _orderService.GetOrderByUserId(uid);
-            var purchased = false;
-
-            foreach (var order in orders)
-            {
-                var items = _orderProductsService.GetOrdersByOrderId(order.OID);
-                if (items.Any(it => it != null && it.PID == pid))
-                {
-                    purchased = true;
-                    break;
-                }
-            }
+            // ✅ Rule 1: Must have purchased
+            bool purchased = _ctx.OrderProducts
+                .Include(op => op.Order)
+                .Any(op => op.PID == productId && op.Order.UID == userId);
 
             if (!purchased)
                 throw new InvalidOperationException("You can only review products you have purchased.");
 
-            // 2) Enforce single review per (user, product)
-            var existingReview = GetReviewsByProductIdAndUserId(pid, uid);
-            if (existingReview != null)
+            // ✅ Rule 2: Prevent duplicate review
+            bool alreadyReviewed = _ctx.Reviews
+                .Any(r => r.PID == productId && r.UID == userId);
+
+            if (alreadyReviewed)
                 throw new InvalidOperationException("You have already reviewed this product.");
 
-            // 3) Map DTO -> Entity
-            var review = _mapper.Map<Review>(reviewDTO);
-            review.PID = pid;
-            review.UID = uid;
-            review.ReviewDate = DateTime.Now;
+            var review = new Review
+            {
+                PID = productId,
+                UID = userId,
+                Rating = dto.Rating,
+                Comment = dto.Comment,
+                ReviewDate = DateTime.UtcNow
+            };
 
             _reviewRepo.AddReview(review);
+            _ctx.SaveChanges();
 
-            // 4) Recalculate product rating for this product only
-            RecalculateProductRating(pid);
-
-            // 5) Return the created review as DTO
-            return _mapper.Map<ReviewDTO>(review);
+            return review;
         }
 
         public ReviewDTO UpdateReview(int rid, ReviewDTO reviewDTO)

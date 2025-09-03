@@ -22,22 +22,18 @@ namespace E_CommerceSystem.Controllers
             _configuration = configuration;
             _mapper = mapper;
         }
-
-        [HttpPost("AddReview")]
-        public IActionResult AddReview([FromQuery] int pid, [FromBody] ReviewDTO review)
+        [HttpPost("{productId:int}")]
+        public IActionResult AddReview(int productId, [FromBody] ReviewDTO dto)
         {
-                if (review == null)
-                    return BadRequest("Review payload is required.");
+            if (dto == null)
+                return BadRequest("Review data is required.");
 
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken(token);
-                int uid = int.Parse(userId);
+            int userId = GetUserIdFromToken();
 
-                // If your service expects a DTO, this is fine:
-                _reviewService.AddReview(uid, pid, review);
+            var review = _reviewService.AddReview(userId, productId, dto);
+            var result = _mapper.Map<ReviewDTO>(review);
 
-                return Ok("Review added successfully.");
-
+            return Ok(result);
         }
 
         [AllowAnonymous]
@@ -68,8 +64,8 @@ namespace E_CommerceSystem.Controllers
                 if (review == null) return NotFound($"Review with ID {reviewId} not found.");
 
                 var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken(token);
-                var uid = int.Parse(userId);
+                var userId = GetUserIdFromToken();
+                var uid = userId;
 
                 if (review.UID != uid)
                     return BadRequest("You are not authorized to delete this review.");
@@ -91,10 +87,11 @@ namespace E_CommerceSystem.Controllers
                     return NotFound($"Review with ID {reviewId} not found.");
 
                 var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userId = GetUserIdFromToken(token);
-                int uid = int.Parse(userId);
+                var userId = GetUserIdFromToken();
+                var uid = userId;
 
-                if (existing.UID != uid)
+
+            if (existing.UID != uid)
                     return BadRequest("You are not authorized to update this review.");
 
                 var toUpdate = _mapper.Map(reviewDTO, existing); // maps onto the loaded entity
@@ -103,16 +100,21 @@ namespace E_CommerceSystem.Controllers
                 return Ok($"Review with ReviewId {reviewId} updated successfully.");
         }
 
-        private string? GetUserIdFromToken(string token)
+        // ---------------------------
+        // Helper: extract userId from JWT
+        // ---------------------------
+        private int GetUserIdFromToken()
         {
+            var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
             var handler = new JwtSecurityTokenHandler();
             if (handler.CanReadToken(token))
             {
                 var jwtToken = handler.ReadJwtToken(token);
                 var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "sub");
-                return subClaim?.Value;
+                if (subClaim != null && int.TryParse(subClaim.Value, out var uid))
+                    return uid;
             }
-            throw new UnauthorizedAccessException("Invalid or unreadable token.");
+            throw new UnauthorizedAccessException("Invalid or missing token.");
         }
     }
 }
