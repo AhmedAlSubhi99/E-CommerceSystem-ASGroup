@@ -129,7 +129,8 @@ namespace E_CommerceSystem
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-            app.UseAuthentication(); //jwt check middleware
+            app.UseAuthentication(); 
+            app.UseMiddleware<E_CommerceSystem.Middleware.ErrorHandlingMiddleware>();
             app.UseAuthorization();
 
 

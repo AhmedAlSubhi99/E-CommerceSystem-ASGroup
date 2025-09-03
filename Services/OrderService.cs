@@ -170,35 +170,25 @@ namespace E_CommerceSystem.Services
 
             decimal totalOrderPrice = 0m;
 
-            // 1) Validate stock
+            // Create order shell
+            var order = new Order
+            {
+                UID = uid,
+                OrderDate = DateTime.UtcNow,
+                TotalAmount = 0m,
+                Status = OrderStatus.Pending
+            };
+            AddOrder(order);
+
             foreach (var item in items)
             {
                 var product = _productService.GetProductByName(item.ProductName)
                               ?? throw new Exception($"{item.ProductName} not found");
-                if (product.Stock < item.Quantity)
-                    throw new Exception($"{item.ProductName} is out of stock");
-            }
 
-            // 2) Create order shell
-            var order = new Order
-            {
-                UID = uid,
-                OrderDate = DateTime.Now,
-                TotalAmount = 0m,
-                Status = OrderStatus.Pending,
-                CreatedAtUtc = DateTime.UtcNow
-            };
-            AddOrder(order);
+                if (product.StockQuantity < item.Quantity)
+                    throw new Exception($"{product.ProductName} is out of stock");
 
-            // 3) Add lines + update stock
-            foreach (var item in items)
-            {
-                var product = _productService.GetProductByName(item.ProductName)!;
-
-                var lineTotal = item.Quantity * product.Price;
-                totalOrderPrice += lineTotal;
-
-                product.Stock -= item.Quantity;
+                product.StockQuantity -= item.Quantity;
 
                 var orderProducts = new OrderProducts
                 {
@@ -208,20 +198,28 @@ namespace E_CommerceSystem.Services
                 };
 
                 _orderProductsService.AddOrderProducts(orderProducts);
-                _ctx.Products.Update(product);
-                _ctx.SaveChanges();
+
+                try
+                {
+                    _ctx.Products.Update(product);
+                    _ctx.SaveChanges();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    throw new InvalidOperationException(
+                        $"Concurrency conflict: {product.ProductName} was updated by another user. Please try again.");
+                }
+
+                totalOrderPrice += item.Quantity * product.Price;
             }
 
-            // 4) Finalize order total
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
 
-            // 5) Send email notification
+            // Send email after success
             var user = _ctx.Users.FirstOrDefault(u => u.UID == uid);
             if (user != null)
-            {
                 _emailService.SendOrderPlacedEmail(user.Email, order.OID, totalOrderPrice);
-            }
         }
 
         public async Task<OrderSummaryDTO?> GetOrderDetails(int orderId)
@@ -255,14 +253,27 @@ namespace E_CommerceSystem.Services
                 .Include(o => o.user)
                 .FirstOrDefault(o => o.OID == orderId && o.UID == userId);
 
-            if (order == null) throw new ArgumentException("Order not found");
+            if (order == null)
+                throw new ArgumentException("Order not found");
+
             if (order.Status == OrderStatus.Cancelled)
                 throw new InvalidOperationException("Order already cancelled");
 
-            // Restore stock
+            // Restore stock with concurrency protection
             foreach (var item in order.OrderProducts)
             {
                 item.product.StockQuantity += item.Quantity;
+
+                try
+                {
+                    _ctx.Products.Update(item.product);
+                    _ctx.SaveChanges();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    throw new InvalidOperationException(
+                        $"Concurrency conflict while restoring stock for {item.product.ProductName}. Please reload and try again.");
+                }
             }
 
             order.Status = OrderStatus.Cancelled;

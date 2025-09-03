@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace E_CommerceSystem.Models
@@ -9,22 +10,24 @@ namespace E_CommerceSystem.Models
         public int PID { get; set; }
 
         [Required]
-        public string ProductName { get; set; }
+        [MaxLength(200)]
+        public string ProductName { get; set; } = null!;
 
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [Required]
-        [Range(0, int.MaxValue)]
+        [Column(TypeName = "decimal(18,2)")]   // Fix precision warning
         public decimal Price { get; set; }
 
         [Required]
         [Range(0, int.MaxValue)]
-        public int Stock {  get; set; }
+        public int StockQuantity { get; set; }   
 
+        [Column(TypeName = "decimal(3,2)")]     //  Ratings like 4.75
         public decimal OverallRating { get; set; }
 
         [JsonIgnore]
-        public virtual ICollection<OrderProducts> OrderProducts { get;set; }
+        public virtual ICollection<OrderProducts> OrderProducts { get; set; }
 
         [JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; }
@@ -36,7 +39,8 @@ namespace E_CommerceSystem.Models
         public Supplier Supplier { get; set; }
 
         public string? ImageUrl { get; set; }
-        public int StockQuantity { get; set; } = 0;
 
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = null!;
     }
 }
