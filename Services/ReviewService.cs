@@ -56,7 +56,7 @@ namespace E_CommerceSystem.Services
 
         public Review AddReview(int userId, int productId, ReviewDTO dto)
         {
-            // ✅ Rule 1: Must have purchased
+            //  Rule 1: Must have purchased
             bool purchased = _ctx.OrderProducts
                 .Include(op => op.Order)
                 .Any(op => op.PID == productId && op.Order.UID == userId);
@@ -64,7 +64,7 @@ namespace E_CommerceSystem.Services
             if (!purchased)
                 throw new InvalidOperationException("You can only review products you have purchased.");
 
-            // ✅ Rule 2: Prevent duplicate review
+            //  Rule 2: Prevent duplicate review
             bool alreadyReviewed = _ctx.Reviews
                 .Any(r => r.PID == productId && r.UID == userId);
 
