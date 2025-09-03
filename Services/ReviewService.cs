@@ -33,30 +33,30 @@ namespace E_CommerceSystem.Services
         // Keep return type as in entities.
         public IEnumerable<Review> GetAllReviews(int pageNumber, int pageSize, int productId)
         {
-            return _reviewRepo.GetReviewByProductId(productId)
-                              .Skip((pageNumber - 1) * pageSize)
-                              .Take(pageSize)
-                              .ToList();
+            pageNumber = pageNumber < 1 ? 1 : pageNumber;
+            pageSize = pageSize < 1 ? 10 : pageSize;
+
+            return _ctx.Reviews
+                .Where(r => r.PID == productId)
+                .OrderByDescending(r => r.ReviewDate)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .AsNoTracking()
+                .ToList();
         }
 
         public Review GetReviewsByProductIdAndUserId(int pid, int uid)
             => _reviewRepo.GetReviewsByProductIdAndUserId(pid, uid);
 
-        public ReviewDTO GetReviewById(int rid)
-        {
-            var review = _reviewRepo.GetReviewById(rid);
-            if (review == null)
-                throw new KeyNotFoundException($"Review with ID {rid} not found.");
-
-            return _mapper.Map<ReviewDTO>(review);
-        }
+        public Review? GetReviewById(int reviewId)
+            => _ctx.Reviews.FirstOrDefault(r => r.ReviewID == reviewId);
 
         public IEnumerable<Review> GetReviewByProductId(int pid)
             => _reviewRepo.GetReviewByProductId(pid);
 
         public Review AddReview(int userId, int productId, ReviewDTO dto)
         {
-            //  Rule 1: Must have purchased
+            //  Rule 1: Must have purchased this product
             bool purchased = _ctx.OrderProducts
                 .Include(op => op.Order)
                 .Any(op => op.PID == productId && op.Order.UID == userId);
@@ -64,7 +64,7 @@ namespace E_CommerceSystem.Services
             if (!purchased)
                 throw new InvalidOperationException("You can only review products you have purchased.");
 
-            //  Rule 2: Prevent duplicate review
+            //  Rule 2: Only one review per user per product
             bool alreadyReviewed = _ctx.Reviews
                 .Any(r => r.PID == productId && r.UID == userId);
 
@@ -82,11 +82,10 @@ namespace E_CommerceSystem.Services
 
             _reviewRepo.AddReview(review);
             _ctx.SaveChanges();
-
             return review;
         }
 
-        public ReviewDTO UpdateReview(int rid, ReviewDTO reviewDTO)
+        public Review UpdateReview(int rid, ReviewDTO reviewDTO)
         {
             var review = _reviewRepo.GetReviewById(rid);
             if (review == null)
@@ -102,20 +101,20 @@ namespace E_CommerceSystem.Services
             RecalculateProductRating(review.PID);
 
             // return updated DTO
-            return _mapper.Map<ReviewDTO>(review);
+            return _mapper.Map<Review>(review);
         }
 
-        public bool DeleteReview(int rid)
+        public void DeleteReview(int reviewId, int requesterUserId, bool isAdmin)
         {
-            var review = _reviewRepo.GetReviewById(rid);
-            if (review == null) return false;
+            var existing = _ctx.Reviews.FirstOrDefault(r => r.ReviewID == reviewId)
+                ?? throw new KeyNotFoundException("Review not found.");
 
-            _reviewRepo.DeleteReview(rid);
+            // only admin or owner can delete
+            if (!isAdmin && existing.UID != requesterUserId)
+                throw new UnauthorizedAccessException("You can only delete your own reviews.");
 
-            // refresh product rating
-            RecalculateProductRating(review.PID);
-
-            return true;
+            _ctx.Reviews.Remove(existing);
+            _ctx.SaveChanges();
         }
 
         private void RecalculateProductRating(int pid)

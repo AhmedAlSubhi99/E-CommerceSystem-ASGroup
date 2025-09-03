@@ -28,5 +28,8 @@ namespace E_CommerceSystem.Models
 
         [JsonIgnore]
         public Product product { get; set; }
+
+
+
     }
 }
