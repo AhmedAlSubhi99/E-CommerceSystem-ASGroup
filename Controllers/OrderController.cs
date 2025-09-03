@@ -167,7 +167,6 @@ namespace E_CommerceSystem.Controllers
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to) =>
             Ok(_orderSummaryService.GetSummary(from, to));
-
         // ---------------------------
         // Invoice (sync)
         // ---------------------------
@@ -192,16 +191,16 @@ namespace E_CommerceSystem.Controllers
             [FromServices] IInvoiceService invoiceService)
         {
             int requestUserId = GetUserId();
-            bool isAdmin = User.IsInRole("admin");
 
-            var result = await invoiceService.GeneratePdfAsync(orderId, requestUserId, isAdmin);
-
+            var result = await invoiceService.GeneratePdfAsync(orderId, requestUserId);
             if (result == null)
                 return NotFound("Invoice not available or you don't have access to this order.");
 
             var (bytes, fileName) = result.Value;
             return File(bytes, "application/pdf", fileName);
         }
+
+
 
         // ---------------------------
         // Helpers

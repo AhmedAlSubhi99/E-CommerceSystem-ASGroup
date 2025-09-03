@@ -1,102 +1,112 @@
 ﻿using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using E_CommerceSystem.DTOs;
+using E_CommerceSystem.Models;
 
 namespace E_CommerceSystem.Services
 {
     public class InvoiceService : IInvoiceService
     {
-        private readonly IOrderService _orderService;
+        private readonly IOrderSummaryService _orderSummaryService;
 
-        public InvoiceService(IOrderService orderService)
+        public InvoiceService(IOrderSummaryService orderSummaryService)
         {
-            _orderService = orderService;
+            _orderSummaryService = orderSummaryService;
         }
 
-        public byte[] GenerateInvoice(int orderId, int userId, string role)
+        // ---------------------------
+        // Sync implementation
+        // ---------------------------
+        public byte[]? GenerateInvoice(int orderId, int requestUserId, bool isAdmin)
         {
-            // Get order details
-            var order = _orderService.GetOrderSummary(orderId);
+            var order = _orderSummaryService.GetOrderSummary(orderId);
+            if (order == null) return null;
 
-            if (order == null)
-                throw new KeyNotFoundException($"Order {orderId} not found.");
+            if (order.CustomerId != requestUserId && !isAdmin)
+                return null;
 
-            // Security: Only owner or admin/manager can access
-            if (order.UID != userId && role != "admin" && role != "manager")
-                throw new UnauthorizedAccessException("You are not allowed to view this invoice.");
+            return BuildPdf(order);
+        }
 
-            // Generate PDF
-            var pdf = Document.Create(container =>
+        // ---------------------------
+        // Async implementation
+        // ---------------------------
+        public async Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId)
+        {
+            var order = await _orderSummaryService.GetOrderSummaryAsync(orderId);
+            if (order == null) return null;
+
+            if (order.CustomerId != requestUserId && order.UserRole != "admin")
+                return null;
+
+            var pdfBytes = BuildPdf(order);
+            var fileName = $"Invoice_{orderId}.pdf";
+            return (pdfBytes, fileName);
+        }
+
+        // ---------------------------
+        // Common PDF builder
+        // ---------------------------
+        private byte[] BuildPdf(OrderSummaryDTO order)
+        {
+            var document = Document.Create(container =>
             {
                 container.Page(page =>
                 {
-                    page.Size(PageSizes.A4);
-                    page.Margin(30);
-                    page.DefaultTextStyle(x => x.FontSize(12));
+                    page.Margin(40).Size(PageSizes.A4);
 
-                    // Header
-                    page.Header().Text($"Invoice #{order.OrderId}")
-                        .FontSize(20).Bold().AlignCenter();
+                    page.Header()
+                        .Text($"Invoice #{order.OrderId}")
+                        .SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
 
-                    // Customer & Order Info
                     page.Content().Column(col =>
                     {
-                        col.Spacing(15);
+                        col.Spacing(10);
 
-                        col.Item().Row(row =>
-                        {
-                            row.RelativeItem().Column(c =>
-                            {
-                                c.Item().Text($"Customer: {order.CustomerName}").Bold();
-                                c.Item().Text($"Email: {order.CustomerEmail}");
-                                c.Item().Text($"Date: {DateTime.Now:yyyy-MM-dd}");
-                                c.Item().Text($"Status: {order.Status}");
-                            });
-                        });
+                        col.Item().Text($"Customer: {order.CustomerName}").FontSize(12);
+                        col.Item().Text($"Date: {order.OrderDate:yyyy-MM-dd}").FontSize(12);
+                        col.Item().LineHorizontal(1);
 
-                        // Products Table
                         col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(cols =>
                             {
-                                cols.RelativeColumn(4); // Product
-                                cols.RelativeColumn(2); // Quantity
-                                cols.RelativeColumn(2); // Price
-                                cols.RelativeColumn(2); // Subtotal
+                                cols.RelativeColumn(3);
+                                cols.RelativeColumn(1);
+                                cols.RelativeColumn(1);
+                                cols.RelativeColumn(1);
                             });
 
-                            // Table Header
                             table.Header(header =>
                             {
                                 header.Cell().Text("Product").Bold();
                                 header.Cell().Text("Qty").Bold();
                                 header.Cell().Text("Price").Bold();
-                                header.Cell().Text("Subtotal").Bold();
+                                header.Cell().Text("Total").Bold();
                             });
 
-                            // Table Rows
-                            foreach (var line in order.Lines)
+                            foreach (var item in order.Lines)
                             {
-                                table.Cell().Text(line.ProductName);
-                                table.Cell().Text(line.Quantity.ToString());
-                                table.Cell().Text($"{line.Price:C}");
-                                table.Cell().Text($"{line.Subtotal:C}");
+                                table.Cell().Text(item.ProductName);
+                                table.Cell().Text(item.Quantity.ToString());
+                                table.Cell().Text($"${item.Price:F2}");
+                                table.Cell().Text($"${item.Total:F2}");
                             }
                         });
 
-                        // Total
-                        col.Item().AlignRight().Text($"Total: {order.TotalAmount:C}")
-                            .FontSize(14).Bold();
+                        col.Item().LineHorizontal(1);
+
+                        col.Item().AlignRight().Text($"Total: ${order.TotalAmount:F2}")
+                            .Bold().FontSize(14);
                     });
 
-                    // Footer
-                    page.Footer().AlignCenter().Text("Thank you for shopping with us!")
-                        .FontSize(10).Italic();
+                    page.Footer()
+                        .AlignCenter()
+                        .Text("Thank you for your purchase!").Italic().FontSize(10);
                 });
-            }).GeneratePdf();
+            });
 
-            return pdf;
+            return document.GeneratePdf();
         }
     }
 }

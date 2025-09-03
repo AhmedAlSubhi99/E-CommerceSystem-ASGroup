@@ -5,9 +5,14 @@ namespace E_CommerceSystem.Services
     public interface IInvoiceService
     {
         /// <summary>
-        /// Generates a PDF invoice for an order (authorized for owner or admin).
-        /// Returns (bytes, filename) or null if unauthorized/not found.
+        /// Generates a PDF invoice (sync).
         /// </summary>
-        Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId, bool isAdmin);
+        byte[]? GenerateInvoice(int orderId, int requestUserId, bool isAdmin);
+
+        /// <summary>
+        /// Generates a PDF invoice (async).
+        /// Returns (bytes, filename) or null.
+        /// </summary>
+        Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId);
     }
 }
