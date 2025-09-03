@@ -74,17 +74,17 @@ namespace E_CommerceSystem.Controllers
         [HttpPut("{id:int}/image")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(50 * 1024 * 1024)] // 50 MB
-        public async Task<IActionResult> UpdateImage([FromRoute] int id, [FromForm] IFormFile file, CancellationToken ct)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest("No image was uploaded.");
+        //public async Task<IActionResult> UpdateImage([FromRoute] int id, [FromForm] IFormFile file, CancellationToken ct)
+        //{
+        //    if (file == null || file.Length == 0)
+        //        return BadRequest("No image was uploaded.");
 
-            var relativeUrl = await _productService.UpdateImageAsync(id, file, ct);
+        //    var relativeUrl = await _productService.UpdateImageAsync(id, file, ct);
 
-            // If you want absolute URL:
-            var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
-            return Ok(new { imageUrl = absoluteUrl, relativeUrl });
-        }
+        //    // If you want absolute URL:
+        //    var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+        //    return Ok(new { imageUrl = absoluteUrl, relativeUrl });
+        //}
 
         [HttpPut("UpdateProduct/{productId}")]
         public IActionResult UpdateProduct(int productId, ProductDTO productInput)

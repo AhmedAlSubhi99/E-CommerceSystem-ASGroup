@@ -10,29 +10,6 @@ namespace E_CommerceSystem.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Products_Category_CategoryId",
-                table: "Products");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_Products_Supplier_SupplierId",
-                table: "Products");
-
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_Supplier",
-                table: "Supplier");
-
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_Category",
-                table: "Category");
-
-            migrationBuilder.RenameTable(
-                name: "Supplier",
-                newName: "Suppliers");
-
-            migrationBuilder.RenameTable(
-                name: "Category",
-                newName: "Categories");
 
             migrationBuilder.AddPrimaryKey(
                 name: "PK_Suppliers",
@@ -59,6 +36,31 @@ namespace E_CommerceSystem.Migrations
                 principalTable: "Suppliers",
                 principalColumn: "SupplierId",
                 onDelete: ReferentialAction.Cascade);
+
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Products_Category_CategoryId",
+                table: "Products");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Products_Supplier_SupplierId",
+                table: "Products");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_Supplier",
+                table: "Supplier");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_Category",
+                table: "Category");
+
+            migrationBuilder.RenameTable(
+                name: "Supplier",
+                newName: "Suppliers");
+
+            migrationBuilder.RenameTable(
+                name: "Category",
+                newName: "Categories");
         }
 
         /// <inheritdoc />
