@@ -8,10 +8,12 @@ namespace E_CommerceSystem.Services
     public class InvoiceService : IInvoiceService
     {
         private readonly IOrderSummaryService _orderSummaryService;
+        private readonly ILogger<InvoiceService> _logger;
 
-        public InvoiceService(IOrderSummaryService orderSummaryService)
+        public InvoiceService(IOrderSummaryService orderSummaryService, ILogger<InvoiceService> logger)
         {
             _orderSummaryService = orderSummaryService;
+            _logger = logger;
         }
 
         // ---------------------------
@@ -19,13 +21,29 @@ namespace E_CommerceSystem.Services
         // ---------------------------
         public byte[]? GenerateInvoice(int orderId, int requestUserId, bool isAdmin)
         {
-            var order = _orderSummaryService.GetOrderSummary(orderId);
-            if (order == null) return null;
+            try
+            {
+                var order = _orderSummaryService.GetOrderSummary(orderId);
+                if (order == null)
+                {
+                    _logger.LogWarning("Invoice generation failed: Order {OrderId} not found.", orderId);
+                    return null;
+                }
 
-            if (order.UID != requestUserId && !isAdmin)
-                return null;
+                if (order.UID != requestUserId && !isAdmin)
+                {
+                    _logger.LogWarning("Unauthorized invoice access attempt for Order {OrderId} by User {UserId}.", orderId, requestUserId);
+                    return null;
+                }
 
-            return BuildPdf(order);
+                _logger.LogInformation("Invoice generated successfully for Order {OrderId} by User {UserId}.", orderId, requestUserId);
+                return BuildPdf(order);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating invoice for Order {OrderId}.", orderId);
+                throw;
+            }
         }
 
         // ---------------------------
@@ -33,15 +51,34 @@ namespace E_CommerceSystem.Services
         // ---------------------------
         public async Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId)
         {
-            var order = await _orderSummaryService.GetOrderSummaryAsync(orderId);
-            if (order == null) return null;
+            try
+            {
+                var order = await _orderSummaryService.GetOrderSummaryAsync(orderId);
+                if (order == null)
+                {
+                    _logger.LogWarning("Async invoice generation failed: Order {OrderId} not found.", orderId);
+                    return null;
+                }
 
-            if (order.UID != requestUserId && order.Role != "admin")
-                return null;
+                if (order.UID != requestUserId && order.Role != "admin")
+                {
+                    _logger.LogWarning("Unauthorized async invoice access attempt for Order {OrderId} by User {UserId}.", orderId, requestUserId);
+                    return null;
+                }
 
-            var pdfBytes = BuildPdf(order);
-            var fileName = $"Invoice_{orderId}.pdf";
-            return (pdfBytes, fileName);
+                var pdfBytes = BuildPdf(order);
+                var fileName = $"Invoice_{orderId}.pdf";
+
+                _logger.LogInformation("Async invoice generated for Order {OrderId} by User {UserId}. File: {FileName}",
+                                       orderId, requestUserId, fileName);
+
+                return (pdfBytes, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating async invoice for Order {OrderId}.", orderId);
+                throw;
+            }
         }
 
         // ---------------------------
@@ -49,6 +86,8 @@ namespace E_CommerceSystem.Services
         // ---------------------------
         private byte[] BuildPdf(OrderSummaryDTO order)
         {
+            _logger.LogDebug("Building PDF for Order {OrderId} with {LineCount} lines.", order.OrderId, order.Lines.Count);
+
             var document = Document.Create(container =>
             {
                 container.Page(page =>
@@ -56,16 +95,12 @@ namespace E_CommerceSystem.Services
                     page.Size(PageSizes.A4);
                     page.Margin(40);
 
-                    // ---------------------------
                     // Header
-                    // ---------------------------
                     page.Header()
                         .Text($"Invoice #{order.OrderId}")
                         .SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
 
-                    // ---------------------------
                     // Content
-                    // ---------------------------
                     page.Content().Column(col =>
                     {
                         col.Spacing(10);
@@ -79,10 +114,10 @@ namespace E_CommerceSystem.Services
                         {
                             table.ColumnsDefinition(cols =>
                             {
-                                cols.RelativeColumn(3); // Product
-                                cols.RelativeColumn(1); // Qty
-                                cols.RelativeColumn(1); // Price
-                                cols.RelativeColumn(1); // Total
+                                cols.RelativeColumn(3);
+                                cols.RelativeColumn(1);
+                                cols.RelativeColumn(1);
+                                cols.RelativeColumn(1);
                             });
 
                             // Header row
@@ -106,15 +141,13 @@ namespace E_CommerceSystem.Services
 
                         col.Item().LineHorizontal(1);
 
-                        // Total amount
+                        // Total
                         col.Item().AlignRight()
                             .Text($"Total: ${order.TotalAmount:F2}")
                             .Bold().FontSize(14);
                     });
 
-                    // ---------------------------
                     // Footer
-                    // ---------------------------
                     page.Footer()
                         .AlignCenter()
                         .Text("Thank you for your purchase!")

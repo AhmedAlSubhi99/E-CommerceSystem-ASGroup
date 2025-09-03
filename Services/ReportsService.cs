@@ -6,8 +6,13 @@ namespace E_CommerceSystem.Services
     public class ReportsService : IReportsService
     {
         private readonly ApplicationDbContext _ctx;
+        private readonly ILogger<ReportsService> _logger;
 
-        public ReportsService(ApplicationDbContext ctx) => _ctx = ctx;
+        public ReportsService(ApplicationDbContext ctx, ILogger<ReportsService> logger)
+        {
+            _ctx = ctx;
+            _logger = logger;
+        }
 
         // Treat Paid/Shipped/Delivered as sales; exclude Cancelled/Pending
         private static bool IsCompletedStatus(OrderStatus s) =>
@@ -15,6 +20,8 @@ namespace E_CommerceSystem.Services
 
         public async Task<IReadOnlyList<BestSellingProductDTO>> GetBestSellingProductsAsync(DateTime? from, DateTime? to, int take = 10)
         {
+            _logger.LogInformation("Fetching best-selling products (Top {Take}) from {From} to {To}.", take, from, to);
+
             var qOrders = _ctx.Orders.AsNoTracking().Where(o => IsCompletedStatus(o.Status));
             if (from.HasValue) qOrders = qOrders.Where(o => o.OrderDate >= from.Value);
             if (to.HasValue) qOrders = qOrders.Where(o => o.OrderDate < to.Value);
@@ -32,22 +39,30 @@ namespace E_CommerceSystem.Services
                         Revenue = g.Sum(x => x.op.Quantity * x.p.Price)
                     };
 
-            return await q.Take(take).ToListAsync();
+            var result = await q.Take(take).ToListAsync();
+            _logger.LogInformation("Best-selling products report generated with {Count} results.", result.Count);
+            return result;
         }
 
         public async Task<IReadOnlyList<RevenueByDayDTO>> GetRevenueByDayAsync(DateTime from, DateTime to)
         {
+            _logger.LogInformation("Fetching revenue by day from {From} to {To}.", from, to);
+
             var q = _ctx.Orders.AsNoTracking()
                 .Where(o => IsCompletedStatus(o.Status) && o.OrderDate >= from && o.OrderDate < to)
                 .GroupBy(o => o.OrderDate.Date)
                 .Select(g => new RevenueByDayDTO { Date = g.Key, Revenue = g.Sum(x => x.TotalAmount) })
                 .OrderBy(x => x.Date);
 
-            return await q.ToListAsync();
+            var result = await q.ToListAsync();
+            _logger.LogInformation("Revenue by day report generated with {Count} days.", result.Count);
+            return result;
         }
 
         public async Task<IReadOnlyList<RevenueByMonthDTO>> GetRevenueByMonthAsync(int year)
         {
+            _logger.LogInformation("Fetching revenue by month for year {Year}.", year);
+
             var q = _ctx.Orders.AsNoTracking()
                 .Where(o => IsCompletedStatus(o.Status) && o.OrderDate.Year == year)
                 .GroupBy(o => new { o.OrderDate.Year, o.OrderDate.Month })
@@ -59,12 +74,15 @@ namespace E_CommerceSystem.Services
                 })
                 .OrderBy(x => x.Year).ThenBy(x => x.Month);
 
-            return await q.ToListAsync();
+            var result = await q.ToListAsync();
+            _logger.LogInformation("Revenue by month report generated with {Count} months.", result.Count);
+            return result;
         }
 
         public async Task<IReadOnlyList<TopRatedProductDTO>> GetTopRatedProductsAsync(int minReviews = 3, int take = 10)
         {
-            // If you store OverallRating on Product, you can use that; here we compute from Reviews to be robust
+            _logger.LogInformation("Fetching top-rated products (MinReviews={MinReviews}, Take={Take}).", minReviews, take);
+
             var q = _ctx.Reviews.AsNoTracking()
                 .GroupBy(r => new { r.PID, r.product.ProductName })
                 .Select(g => new TopRatedProductDTO
@@ -78,11 +96,15 @@ namespace E_CommerceSystem.Services
                 .OrderByDescending(x => x.Rating)
                 .ThenByDescending(x => x.ReviewsCount);
 
-            return await q.Take(take).ToListAsync();
+            var result = await q.Take(take).ToListAsync();
+            _logger.LogInformation("Top-rated products report generated with {Count} results.", result.Count);
+            return result;
         }
 
         public async Task<IReadOnlyList<MostActiveCustomerDTO>> GetMostActiveCustomersAsync(DateTime? from, DateTime? to, int take = 10)
         {
+            _logger.LogInformation("Fetching most active customers (Top {Take}) from {From} to {To}.", take, from, to);
+
             var qOrders = _ctx.Orders.AsNoTracking().Where(o => IsCompletedStatus(o.Status));
             if (from.HasValue) qOrders = qOrders.Where(o => o.OrderDate >= from.Value);
             if (to.HasValue) qOrders = qOrders.Where(o => o.OrderDate < to.Value);
@@ -99,7 +121,9 @@ namespace E_CommerceSystem.Services
                         TotalSpent = g.Sum(x => x.TotalAmount)
                     };
 
-            return await q.Take(take).ToListAsync();
+            var result = await q.Take(take).ToListAsync();
+            _logger.LogInformation("Most active customers report generated with {Count} results.", result.Count);
+            return result;
         }
     }
 }

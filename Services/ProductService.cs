@@ -9,15 +9,17 @@ namespace E_CommerceSystem.Services
     {
         private readonly IProductRepo _productRepo;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger<ProductService> _logger;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
 
 
-        public ProductService(IProductRepo productRepo, IWebHostEnvironment env, ApplicationDbContext ctx, IMapper mapper)
+        public ProductService(IProductRepo productRepo, IWebHostEnvironment env, ILogger<ProductService> logger, ApplicationDbContext ctx, IMapper mapper)
         {
             _productRepo = productRepo;
             _mapper = mapper;
+            _logger = logger;
             _ctx = ctx;
             _env = env;
 
@@ -65,64 +67,117 @@ namespace E_CommerceSystem.Services
 
         public void AddProduct(Product product, IFormFile imageFile)
         {
-            if (imageFile != null && imageFile.Length > 0)
+            try
             {
-                var fileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
-                var path = Path.Combine("wwwroot/images", fileName);
-
-                using (var stream = new FileStream(path, FileMode.Create))
+                if (imageFile != null && imageFile.Length > 0)
                 {
-                    imageFile.CopyTo(stream);
+                    var fileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
+                    var folder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
+
+                    if (!Directory.Exists(folder))
+                        Directory.CreateDirectory(folder);
+
+                    var path = Path.Combine(folder, fileName);
+
+                    using (var stream = new FileStream(path, FileMode.Create))
+                    {
+                        imageFile.CopyTo(stream);
+                    }
+
+                    product.ImageUrl = "/images/" + fileName;
+                    _logger.LogInformation("Image uploaded successfully for product {ProductName}, saved at {ImageUrl}.",
+                                           product.ProductName, product.ImageUrl);
                 }
 
-                product.ImageUrl = "/images/" + fileName;
-            }
+                _ctx.Products.Add(product);
+                _ctx.SaveChanges();
 
-            _ctx.Products.Add(product);
-            _ctx.SaveChanges();
+                _logger.LogInformation("Product {ProductName} added successfully with ID {ProductId}.",
+                                       product.ProductName, product.PID);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while adding product {ProductName}", product.ProductName);
+                throw;
+            }
         }
 
 
         public async Task<string?> UploadImageAsync(int productId, IFormFile file, string uploadPath)
         {
-            if (file == null || file.Length == 0) return null;
-
-            if (!Directory.Exists(uploadPath))
-                Directory.CreateDirectory(uploadPath);
-
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var filePath = Path.Combine(uploadPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            try
             {
-                await file.CopyToAsync(stream);
-            }
+                if (file == null || file.Length == 0)
+                {
+                    _logger.LogWarning("Upload failed: empty file for product {ProductId}", productId);
+                    return null;
+                }
 
-            return $"/uploads/products/{fileName}";
+                if (!Directory.Exists(uploadPath))
+                    Directory.CreateDirectory(uploadPath);
+
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+                var filePath = Path.Combine(uploadPath, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var imageUrl = $"/uploads/products/{fileName}";
+                _logger.LogInformation("Image uploaded successfully for product {ProductId}, saved at {ImageUrl}",
+                                       productId, imageUrl);
+
+                return imageUrl;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading image for product {ProductId}", productId);
+                throw;
+            }
         }
 
         public void UpdateProduct(int productId, ProductUpdateDTO dto, IFormFile imageFile)
         {
-            var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
-            if (product == null) throw new ArgumentException("Product not found");
-
-            // map DTO
-            _mapper.Map(dto, product);
-
-            if (imageFile != null && imageFile.Length > 0)
+            try
             {
-                var fileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
-                var path = Path.Combine("wwwroot/images", fileName);
-
-                using (var stream = new FileStream(path, FileMode.Create))
+                var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
+                if (product == null)
                 {
-                    imageFile.CopyTo(stream);
+                    _logger.LogWarning("Update failed: Product {ProductId} not found.", productId);
+                    throw new ArgumentException("Product not found");
                 }
 
-                product.ImageUrl = "/images/" + fileName;
-            }
+                _mapper.Map(dto, product);
 
-            _ctx.SaveChanges();
+                if (imageFile != null && imageFile.Length > 0)
+                {
+                    var fileName = Guid.NewGuid() + Path.GetExtension(imageFile.FileName);
+                    var folder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
+
+                    if (!Directory.Exists(folder))
+                        Directory.CreateDirectory(folder);
+
+                    var path = Path.Combine(folder, fileName);
+
+                    using (var stream = new FileStream(path, FileMode.Create))
+                    {
+                        imageFile.CopyTo(stream);
+                    }
+
+                    product.ImageUrl = "/images/" + fileName;
+                    _logger.LogInformation("Image updated for product {ProductName}, saved at {ImageUrl}.",
+                                           product.ProductName, product.ImageUrl);
+                }
+
+                _ctx.SaveChanges();
+                _logger.LogInformation("Product {ProductId} updated successfully.", productId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while updating product {ProductId}", productId);
+                throw;
+            }
         }
 
         public Product GetProductByName(string productName)
@@ -162,20 +217,50 @@ namespace E_CommerceSystem.Services
         }
         public void IncrementStock(int productId, int quantity)
         {
-            var p = _productRepo.GetProductById(productId)
-                    ?? throw new KeyNotFoundException($"Product {productId} not found.");
+            try
+            {
+                var product = _productRepo.GetProductById(productId);
+                if (product == null)
+                {
+                    _logger.LogWarning("Stock increment failed: Product {ProductId} not found.", productId);
+                    throw new KeyNotFoundException($"Product {productId} not found.");
+                }
 
-            p.StockQuantity += quantity;
+                product.StockQuantity += quantity;
 
-            _productRepo.Update(p);
-            _productRepo.SaveChanges();
+                _productRepo.Update(product);
+                _productRepo.SaveChanges();
+
+                _logger.LogInformation("Stock incremented by {Quantity} for Product {ProductId}. New stock: {StockQuantity}",
+                                       quantity, productId, product.StockQuantity);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while incrementing stock for Product {ProductId}", productId);
+                throw;
+            }
         }
         public void DeleteProduct(int productId)
         {
-            var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
-            if (product == null) throw new KeyNotFoundException($"Product {productId} not found.");
-            _ctx.Products.Remove(product);
-            _ctx.SaveChanges();
+            try
+            {
+                var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
+                if (product == null)
+                {
+                    _logger.LogWarning("Delete failed: Product {ProductId} not found.", productId);
+                    throw new KeyNotFoundException($"Product {productId} not found.");
+                }
+
+                _ctx.Products.Remove(product);
+                _ctx.SaveChanges();
+
+                _logger.LogInformation("Product {ProductId} deleted successfully.", productId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while deleting Product {ProductId}", productId);
+                throw;
+            }
         }
 
     }

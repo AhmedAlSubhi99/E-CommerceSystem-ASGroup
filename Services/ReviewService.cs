@@ -13,6 +13,7 @@ namespace E_CommerceSystem.Services
         private readonly IOrderProductsService _orderProductsService;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
+        private readonly ILogger<ReviewService> _logger;
 
         public ReviewService(
             IReviewRepo reviewRepo,
@@ -20,7 +21,8 @@ namespace E_CommerceSystem.Services
             IOrderProductsService orderProductsService,
             IOrderService orderService,
             ApplicationDbContext ctx,
-            IMapper mapper)
+            IMapper mapper,
+            ILogger<ReviewService> logger)
         {
             _reviewRepo = reviewRepo;
             _productService = productService;
@@ -28,48 +30,62 @@ namespace E_CommerceSystem.Services
             _orderService = orderService;
             _ctx = ctx;
             _mapper = mapper;
+            _logger = logger;
         }
 
-        // Keep return type as in entities.
         public IEnumerable<Review> GetAllReviews(int pageNumber, int pageSize, int productId)
         {
             pageNumber = pageNumber < 1 ? 1 : pageNumber;
             pageSize = pageSize < 1 ? 10 : pageSize;
 
-            return _ctx.Reviews
+            var reviews = _ctx.Reviews
                 .Where(r => r.PID == productId)
                 .OrderByDescending(r => r.ReviewDate)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .AsNoTracking()
                 .ToList();
+
+            _logger.LogInformation("Fetched {Count} reviews for Product {ProductId}.", reviews.Count, productId);
+            return reviews;
         }
 
         public Review GetReviewsByProductIdAndUserId(int pid, int uid)
             => _reviewRepo.GetReviewsByProductIdAndUserId(pid, uid);
 
         public Review? GetReviewById(int reviewId)
-            => _ctx.Reviews.FirstOrDefault(r => r.ReviewID == reviewId);
+        {
+            var review = _ctx.Reviews.FirstOrDefault(r => r.ReviewID == reviewId);
+            if (review == null)
+                _logger.LogWarning("Review {ReviewId} not found.", reviewId);
+            else
+                _logger.LogInformation("Fetched review {ReviewId}.", reviewId);
+            return review;
+        }
 
         public IEnumerable<Review> GetReviewByProductId(int pid)
             => _reviewRepo.GetReviewByProductId(pid);
 
         public Review AddReview(int userId, int productId, ReviewDTO dto)
         {
-            //  Rule 1: Must have purchased this product
+            // Rule 1
             bool purchased = _ctx.OrderProducts
                 .Include(op => op.Order)
                 .Any(op => op.PID == productId && op.Order.UID == userId);
 
             if (!purchased)
+            {
+                _logger.LogWarning("User {UserId} tried to review Product {ProductId} without purchase.", userId, productId);
                 throw new InvalidOperationException("You can only review products you have purchased.");
+            }
 
-            //  Rule 2: Only one review per user per product
-            bool alreadyReviewed = _ctx.Reviews
-                .Any(r => r.PID == productId && r.UID == userId);
-
+            // Rule 2
+            bool alreadyReviewed = _ctx.Reviews.Any(r => r.PID == productId && r.UID == userId);
             if (alreadyReviewed)
+            {
+                _logger.LogWarning("User {UserId} tried to add a second review for Product {ProductId}.", userId, productId);
                 throw new InvalidOperationException("You have already reviewed this product.");
+            }
 
             var review = new Review
             {
@@ -82,6 +98,10 @@ namespace E_CommerceSystem.Services
 
             _reviewRepo.AddReview(review);
             _ctx.SaveChanges();
+
+            _logger.LogInformation("Review {ReviewId} added by User {UserId} for Product {ProductId}.",
+                                   review.ReviewID, userId, productId);
+
             return review;
         }
 
@@ -89,18 +109,19 @@ namespace E_CommerceSystem.Services
         {
             var review = _reviewRepo.GetReviewById(rid);
             if (review == null)
+            {
+                _logger.LogWarning("Update failed: Review {ReviewId} not found.", rid);
                 throw new KeyNotFoundException($"Review with ID {rid} not found.");
+            }
 
-            // copy incoming fields to tracked entity
             _mapper.Map(reviewDTO, review);
             review.ReviewDate = DateTime.Now;
 
             _reviewRepo.UpdateReview(review);
 
-            // Recalculate rating for this product
             RecalculateProductRating(review.PID);
 
-            // return updated DTO
+            _logger.LogInformation("Review {ReviewId} updated successfully.", rid);
             return _mapper.Map<Review>(review);
         }
 
@@ -109,31 +130,35 @@ namespace E_CommerceSystem.Services
             var existing = _ctx.Reviews.FirstOrDefault(r => r.ReviewID == reviewId)
                 ?? throw new KeyNotFoundException("Review not found.");
 
-            // only admin or owner can delete
             if (!isAdmin && existing.UID != requesterUserId)
+            {
+                _logger.LogWarning("User {UserId} attempted to delete Review {ReviewId} without permission.", requesterUserId, reviewId);
                 throw new UnauthorizedAccessException("You can only delete your own reviews.");
+            }
 
             _ctx.Reviews.Remove(existing);
             _ctx.SaveChanges();
+
+            _logger.LogInformation("Review {ReviewId} deleted by User {UserId} (Admin: {IsAdmin}).", reviewId, requesterUserId, isAdmin);
         }
 
         private void RecalculateProductRating(int pid)
         {
-            // Only reviews for this product
             var reviews = _reviewRepo.GetReviewByProductId(pid).ToList();
-
             var product = _productService.GetProductById(pid);
             if (product == null)
+            {
+                _logger.LogError("Recalculate rating failed: Product {ProductId} not found.", pid);
                 throw new KeyNotFoundException($"Product with ID {pid} not found.");
+            }
 
             var averageRating = reviews.Any() ? reviews.Average(r => r.Rating) : 0.0;
-
-            // If OverallRating is decimal in your Product model, convert safely
             product.OverallRating = Convert.ToDecimal(averageRating);
 
             var dto = _mapper.Map<ProductUpdateDTO>(product);
             _productService.UpdateProduct(product.PID, dto, null!);
 
+            _logger.LogInformation("Recalculated average rating {Rating} for Product {ProductId}.", averageRating, pid);
         }
     }
 }
