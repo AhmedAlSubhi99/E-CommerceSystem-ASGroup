@@ -13,13 +13,15 @@ namespace E_CommerceSystem.Services
         private readonly IUserService _users;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
+        private readonly ILogger<OrderSummaryService> _logger;
 
         public OrderSummaryService(IOrderService orders,
                                    IOrderProductsService orderProducts,
                                    IProductService products,
                                    IUserService users,
                                    ApplicationDbContext ctx,
-                                   IMapper mapper)
+                                   IMapper mapper,
+                                   ILogger<OrderSummaryService> logger)
         {
             _orders = orders;
             _orderProducts = orderProducts;
@@ -27,11 +29,9 @@ namespace E_CommerceSystem.Services
             _users = users;
             _ctx = ctx;
             _mapper = mapper;
+            _logger = logger;
         }
 
-        // --------------------------
-        // Get summary for single order
-        // --------------------------
         public OrderSummaryDTO? GetOrderSummary(int orderId)
         {
             var order = _ctx.Orders
@@ -39,8 +39,13 @@ namespace E_CommerceSystem.Services
                 .Include(o => o.user)
                 .FirstOrDefault(o => o.OID == orderId);
 
-            if (order == null) return null;
+            if (order == null)
+            {
+                _logger.LogWarning("Order summary requested but not found. OrderId={OrderId}", orderId);
+                return null;
+            }
 
+            _logger.LogInformation("Fetched order summary for OrderId={OrderId}", orderId);
             return _mapper.Map<OrderSummaryDTO>(order);
         }
 
@@ -51,14 +56,16 @@ namespace E_CommerceSystem.Services
                 .Include(o => o.user)
                 .FirstOrDefaultAsync(o => o.OID == orderId);
 
-            if (order == null) return null;
+            if (order == null)
+            {
+                _logger.LogWarning("Async order summary requested but not found. OrderId={OrderId}", orderId);
+                return null;
+            }
 
+            _logger.LogInformation("Fetched async order summary for OrderId={OrderId}", orderId);
             return _mapper.Map<OrderSummaryDTO>(order);
         }
 
-        // --------------------------
-        // Get summary by orderId (throws if not found)
-        // --------------------------
         public OrderSummaryDTO GetSummaryByOrderId(int orderId)
         {
             var order = _ctx.Orders
@@ -67,43 +74,47 @@ namespace E_CommerceSystem.Services
                 .FirstOrDefault(o => o.OID == orderId);
 
             if (order == null)
+            {
+                _logger.LogWarning("GetSummaryByOrderId failed. OrderId={OrderId} not found.", orderId);
                 throw new KeyNotFoundException($"Order {orderId} not found.");
+            }
 
+            _logger.LogInformation("Fetched summary by OrderId={OrderId}", orderId);
             return _mapper.Map<OrderSummaryDTO>(order);
         }
 
-        // --------------------------
-        // Get paginated summaries
-        // --------------------------
         public IEnumerable<OrderSummaryDTO> GetSummaries(int pageNumber = 1, int pageSize = 20)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1 || pageSize > 200) pageSize = 20;
 
-            return _orders.GetAllOrders()
+            var orders = _orders.GetAllOrders()
                 .OrderByDescending(o => o.OrderDate)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(o => GetSummaryByOrderId(o.OID))
                 .ToList();
+
+            var summaries = orders.Select(o => GetSummaryByOrderId(o.OID)).ToList();
+
+            _logger.LogInformation("Fetched {Count} order summaries for page={Page}, pageSize={PageSize}.",
+                                   summaries.Count, pageNumber, pageSize);
+
+            return summaries;
         }
 
-        // --------------------------
-        // Get all user orders (async)
-        // --------------------------
         public async Task<List<OrderSummaryDTO>> GetUserOrderSummariesAsync(int userId)
         {
-            return await _ctx.Orders
+            var result = await _ctx.Orders
                 .AsNoTracking()
                 .Where(o => o.UID == userId)
                 .OrderByDescending(o => o.OrderDate)
                 .ProjectTo<OrderSummaryDTO>(_mapper.ConfigurationProvider)
                 .ToListAsync();
+
+            _logger.LogInformation("Fetched {Count} order summaries for UserId={UserId}", result.Count, userId);
+            return result;
         }
 
-        // --------------------------
-        // Get summary with date filter (Admin dashboard)
-        // --------------------------
         public AdminOrderSummaryDTO GetSummary(DateTime? from = null, DateTime? to = null)
         {
             var query = _ctx.Orders
@@ -116,7 +127,7 @@ namespace E_CommerceSystem.Services
 
             var orders = query.ToList();
 
-            return new AdminOrderSummaryDTO
+            var result = new AdminOrderSummaryDTO
             {
                 TotalOrders = orders.Count,
                 TotalRevenue = orders.Sum(o => o.TotalAmount),
@@ -145,6 +156,11 @@ namespace E_CommerceSystem.Services
                     .Take(10)
                     .ToList()
             };
+
+            _logger.LogInformation("Admin order summary generated with {Orders} orders, {Revenue:C} total revenue, {Items} items sold.",
+                                   result.TotalOrders, result.TotalRevenue, result.TotalItemsSold);
+
+            return result;
         }
     }
 }
