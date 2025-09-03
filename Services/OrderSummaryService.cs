@@ -1,8 +1,7 @@
 ﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using E_CommerceSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using AutoMapper.QueryableExtensions;
-
 
 namespace E_CommerceSystem.Services
 {
@@ -18,7 +17,9 @@ namespace E_CommerceSystem.Services
         public OrderSummaryService(IOrderService orders,
                                    IOrderProductsService orderProducts,
                                    IProductService products,
-                                   IUserService users, ApplicationDbContext ctx, IMapper mapper)
+                                   IUserService users,
+                                   ApplicationDbContext ctx,
+                                   IMapper mapper)
         {
             _orders = orders;
             _orderProducts = orderProducts;
@@ -28,11 +29,40 @@ namespace E_CommerceSystem.Services
             _mapper = mapper;
         }
 
+        // --------------------------
+        // Get summary for single order
+        // --------------------------
+        public OrderSummaryDTO? GetOrderSummary(int orderId)
+        {
+            var order = _ctx.Orders
+                .Include(o => o.OrderProducts).ThenInclude(op => op.product)
+                .Include(o => o.user)
+                .FirstOrDefault(o => o.OID == orderId);
+
+            if (order == null) return null;
+
+            return _mapper.Map<OrderSummaryDTO>(order);
+        }
+
+        public async Task<OrderSummaryDTO?> GetOrderSummaryAsync(int orderId)
+        {
+            var order = await _ctx.Orders
+                .Include(o => o.OrderProducts).ThenInclude(op => op.product)
+                .Include(o => o.user)
+                .FirstOrDefaultAsync(o => o.OID == orderId);
+
+            if (order == null) return null;
+
+            return _mapper.Map<OrderSummaryDTO>(order);
+        }
+
+        // --------------------------
+        // Get summary by orderId (throws if not found)
+        // --------------------------
         public OrderSummaryDTO GetSummaryByOrderId(int orderId)
         {
             var order = _ctx.Orders
-                .Include(o => o.OrderProducts)
-                   .ThenInclude(op => op.product)
+                .Include(o => o.OrderProducts).ThenInclude(op => op.product)
                 .Include(o => o.user)
                 .FirstOrDefault(o => o.OID == orderId);
 
@@ -42,6 +72,9 @@ namespace E_CommerceSystem.Services
             return _mapper.Map<OrderSummaryDTO>(order);
         }
 
+        // --------------------------
+        // Get paginated summaries
+        // --------------------------
         public IEnumerable<OrderSummaryDTO> GetSummaries(int pageNumber = 1, int pageSize = 20)
         {
             if (pageNumber < 1) pageNumber = 1;
@@ -54,25 +87,23 @@ namespace E_CommerceSystem.Services
                 .Select(o => GetSummaryByOrderId(o.OID))
                 .ToList();
         }
+
+        // --------------------------
+        // Get all user orders (async)
+        // --------------------------
         public async Task<List<OrderSummaryDTO>> GetUserOrderSummariesAsync(int userId)
         {
             return await _ctx.Orders
                 .AsNoTracking()
                 .Where(o => o.UID == userId)
                 .OrderByDescending(o => o.OrderDate)
-                // ensure navigations are available to the mapper
                 .ProjectTo<OrderSummaryDTO>(_mapper.ConfigurationProvider)
                 .ToListAsync();
         }
 
-        public async Task<OrderSummaryDTO?> GetOrderSummaryAsync(int orderId, int userId)
-        {
-            return await _ctx.Orders
-                .AsNoTracking()
-                .Where(o => o.OID == orderId && o.UID == userId)
-                .ProjectTo<OrderSummaryDTO>(_mapper.ConfigurationProvider)
-                .FirstOrDefaultAsync();
-        }
+        // --------------------------
+        // Get summary with date filter (Admin dashboard)
+        // --------------------------
         public AdminOrderSummaryDTO GetSummary(DateTime? from = null, DateTime? to = null)
         {
             var query = _ctx.Orders

@@ -22,7 +22,7 @@ namespace E_CommerceSystem.Services
             var order = _orderSummaryService.GetOrderSummary(orderId);
             if (order == null) return null;
 
-            if (order.CustomerId != requestUserId && !isAdmin)
+            if (order.UID != requestUserId && !isAdmin)
                 return null;
 
             return BuildPdf(order);
@@ -36,7 +36,7 @@ namespace E_CommerceSystem.Services
             var order = await _orderSummaryService.GetOrderSummaryAsync(orderId);
             if (order == null) return null;
 
-            if (order.CustomerId != requestUserId && order.UserRole != "admin")
+            if (order.UID != requestUserId && order.Role != "admin")
                 return null;
 
             var pdfBytes = BuildPdf(order);
@@ -53,7 +53,8 @@ namespace E_CommerceSystem.Services
             {
                 container.Page(page =>
                 {
-                    page.Margin(40).Size(PageSizes.A4);
+                    page.Size(PageSizes.A4);
+                    page.Margin(40);
 
                     page.Header()
                         .Text($"Invoice #{order.OrderId}")
@@ -89,20 +90,22 @@ namespace E_CommerceSystem.Services
                             {
                                 table.Cell().Text(item.ProductName);
                                 table.Cell().Text(item.Quantity.ToString());
-                                table.Cell().Text($"${item.Price:F2}");
-                                table.Cell().Text($"${item.Total:F2}");
+                                table.Cell().Text($"${item.UnitPrice:F2}");
+                                table.Cell().Text($"${item.LineTotal:F2}");
                             }
                         });
 
                         col.Item().LineHorizontal(1);
 
-                        col.Item().AlignRight().Text($"Total: ${order.TotalAmount:F2}")
+                        col.Item().AlignRight()
+                            .Text($"Total: ${order.TotalAmount:F2}")
                             .Bold().FontSize(14);
                     });
 
                     page.Footer()
                         .AlignCenter()
-                        .Text("Thank you for your purchase!").Italic().FontSize(10);
+                        .Text("Thank you for your purchase!")
+                        .Italic().FontSize(10);
                 });
             });
 
