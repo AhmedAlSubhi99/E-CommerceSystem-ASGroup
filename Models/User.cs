@@ -36,5 +36,7 @@ namespace E_CommerceSystem.Models
         [JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 
+        public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
     }
 }
