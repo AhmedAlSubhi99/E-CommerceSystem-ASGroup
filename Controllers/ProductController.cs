@@ -38,10 +38,20 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [Authorize(Roles = "admin")]
         [HttpPost("AddProduct")]
-        public IActionResult AddProduct([FromForm] ProductCreateDTO dto, IFormFile imageFile)
+        public IActionResult AddProduct([FromForm] ProductCreateDTO dto)
         {
+            if (dto.ImageFile != null)
+            {
+                var allowedTypes = new[] { "image/jpeg", "image/png" };
+                if (!allowedTypes.Contains(dto.ImageFile.ContentType))
+                    return BadRequest("Only JPEG and PNG images are allowed.");
+
+                if (dto.ImageFile.Length > 2 * 1024 * 1024) // 2MB limit
+                    return BadRequest("Image size cannot exceed 2MB.");
+            }
+
             var product = _mapper.Map<Product>(dto);
-            _productService.AddProduct(product, imageFile);
+            _productService.AddProduct(product, dto.ImageFile);
             return Ok(_mapper.Map<ProductDTO>(product));
         }
 
@@ -50,9 +60,19 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [Authorize(Roles = "admin")]
         [HttpPut("UpdateProduct/{id}")]
-        public IActionResult UpdateProduct(int id, [FromForm] ProductUpdateDTO dto, IFormFile imageFile)
+        public IActionResult UpdateProduct(int id, [FromForm] ProductUpdateDTO dto)
         {
-            _productService.UpdateProduct(id, dto, imageFile);
+            if (dto.ImageFile != null)
+            {
+                var allowedTypes = new[] { "image/jpeg", "image/png" };
+                if (!allowedTypes.Contains(dto.ImageFile.ContentType))
+                    return BadRequest("Only JPEG and PNG images are allowed.");
+
+                if (dto.ImageFile.Length > 2 * 1024 * 1024)
+                    return BadRequest("Image size cannot exceed 2MB.");
+            }
+
+            _productService.UpdateProduct(id, dto, dto.ImageFile);
             var product = _productService.GetProductById(id);
             return Ok(_mapper.Map<ProductDTO>(product));
         }
