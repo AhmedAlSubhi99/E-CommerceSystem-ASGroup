@@ -1,12 +1,7 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.IO;
-using System.Security.Cryptography;
 
 namespace E_CommerceSystem.Services
 {
@@ -29,20 +24,36 @@ namespace E_CommerceSystem.Services
         }
 
 
-        public IEnumerable<Product> GetProducts(int page, int pageSize, string name , decimal? minPrice , decimal? maxPrice )
+        public IEnumerable<Product> GetProducts(int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice)
         {
-            var query = _ctx.Products.AsQueryable();
+            // Guardrails
+            page = page < 1 ? 1 : page;
+            pageSize = pageSize < 1 ? 10 : pageSize;
+            if (pageSize > 100) pageSize = 100; // sanity cap
 
-            if (!string.IsNullOrEmpty(name))
-                query = query.Where(p => p.ProductName.Contains(name));
+            var query = _ctx.Products
+                .AsNoTracking()
+                .AsQueryable();
 
+            // Name filter (case-insensitive, SQL-friendly)
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var pattern = $"%{name.Trim()}%";
+                query = query.Where(p => EF.Functions.Like(p.ProductName, pattern));
+            }
+
+            // Price filters
             if (minPrice.HasValue)
                 query = query.Where(p => p.Price >= minPrice.Value);
 
             if (maxPrice.HasValue)
                 query = query.Where(p => p.Price <= maxPrice.Value);
 
-            return query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            // Stable ordering, then page
+            query = query.OrderBy(p => p.PID);
+
+            var skip = (page - 1) * pageSize;
+            return query.Skip(skip).Take(pageSize).ToList();
         }
         public Product GetProductById(int pid)
         {

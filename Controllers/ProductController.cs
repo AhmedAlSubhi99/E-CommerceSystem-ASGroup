@@ -63,14 +63,16 @@ namespace E_CommerceSystem.Controllers
         [AllowAnonymous]
         [HttpGet("GetProducts")]
         public IActionResult GetProducts(
-            int page = 1,
-            int pageSize = 10,
-            string? name = null,
-            decimal? minPrice = null,
-            decimal? maxPrice = null)
+     [FromQuery] int page = 1,
+     [FromQuery] int pageSize = 10,
+     [FromQuery] string? name = null,
+     [FromQuery] decimal? minPrice = null,
+     [FromQuery] decimal? maxPrice = null)
         {
-            var products = _productService.GetProducts(page, pageSize, name, minPrice, maxPrice);
+            if (minPrice.HasValue && maxPrice.HasValue && minPrice > maxPrice)
+                return BadRequest("minPrice cannot be greater than maxPrice.");
 
+            var products = _productService.GetProducts(page, pageSize, name, minPrice, maxPrice);
             var dtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
             return Ok(dtos);
         }
