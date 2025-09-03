@@ -35,16 +35,6 @@ namespace E_CommerceSystem.Controllers
                 if(InputUser == null)
                     return BadRequest("User data is required");
 
-                //var user = new User
-                //{
-                //    UName = InputUser.UName,
-                //    Email = InputUser.Email,
-                //    Password = InputUser.Password,
-                //    Role = InputUser.Role,
-                //    Phone = InputUser.Phone,
-                //    CreatedAt = DateTime.Now
-                //};
-
                 var user = _mapper.Map<User>(InputUser);
                 user.CreatedAt = DateTime.Now;
 
@@ -61,39 +51,30 @@ namespace E_CommerceSystem.Controllers
 
 
         [AllowAnonymous]
-        [HttpGet("Login")]
+        [HttpPost("Login")]
         public IActionResult Login(string email, string password)
         {
-            try
-            {
-                var user = _userService.GetUSer(email, password);
-                string token = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
-                return Ok(token);
+            var user = _userService.GetUSer(email, password);
 
-            }
-            catch (Exception ex)
-            {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while login. {(ex.Message)}");
-            }
+            if (user == null)
+                return Unauthorized("Invalid credentials");
 
+            string token = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
+
+            var response = _mapper.Map<LoginResponseDTO>(user);
+            response.AccessToken = token;
+
+            return Ok(response);
         }
-
 
         [HttpGet("GetUserById/{UserID}")]
         public IActionResult GetUserById(int UserID)
         {
-            try
-            {
-                var user = _userService.GetUserById(UserID);
-                return Ok(user);
-   
-            }
-            catch (Exception ex)
-            {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while retrieving user. {(ex.Message)}");
-            }
+            var user = _userService.GetUserById(UserID);
+            if (user == null) return NotFound();
+
+            var dto = _mapper.Map<UserDTO>(user);
+            return Ok(dto);
         }
 
         [NonAction]

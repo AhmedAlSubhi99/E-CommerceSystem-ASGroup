@@ -3,8 +3,8 @@ using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
 
 namespace E_CommerceSystem.Controllers
 {
@@ -14,171 +14,102 @@ namespace E_CommerceSystem.Controllers
     public class ProductController : ControllerBase
     {
         private readonly IProductService _productService;
-        private readonly IConfiguration _configuration;
+        private readonly ICategoryService _categoryService;
+        private readonly ISupplierService _supplierService;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
-        public ProductController(IProductService productService, IConfiguration configuration, ApplicationDbContext ctx, IMapper mapper)
+        public ProductController(
+            IProductService productService,
+            ICategoryService categoryService,
+            ISupplierService supplierService,
+            ApplicationDbContext ctx,
+            IMapper mapper)
         {
             _productService = productService;
-            _configuration = configuration;
+            _categoryService = categoryService;
+            _supplierService = supplierService;
             _ctx = ctx;
             _mapper = mapper;
         }
 
-        // =============================
-        // ADD PRODUCT (with optional image)
-        // =============================
+        // -------------------------------
+        // Add Product
+        // -------------------------------
         [Authorize(Roles = "admin")]
-        [RequestSizeLimit(50_000_000)]
         [HttpPost("AddProduct")]
-        public IActionResult AddNewProduct([FromForm] ProductDTO productInput, IFormFile? imageFile)
+        public IActionResult AddProduct([FromForm] ProductCreateDTO dto, IFormFile imageFile)
         {
-            if (productInput == null)
-                return BadRequest("Product data is required.");
-
-            var product = _productService.AddProduct(productInput, imageFile);
+            var product = _mapper.Map<Product>(dto);
+            _productService.AddProduct(product, imageFile);
             return Ok(_mapper.Map<ProductDTO>(product));
         }
 
-        // =============================
-        // UPDATE/REPLACE PRODUCT IMAGE
-        // =============================
-        [HttpPut("UpdateProduct/ {productId}")]
-        public IActionResult UpdateProduct(int productId, [FromForm] ProductDTO productInput, IFormFile? imageFile)
+        // -------------------------------
+        // Update Product
+        // -------------------------------
+        [Authorize(Roles = "admin")]
+        [HttpPut("UpdateProduct/{id}")]
+        public IActionResult UpdateProduct(int id, [FromForm] ProductUpdateDTO dto, IFormFile imageFile)
         {
-            try
-            {
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userRole = GetUserRoleFromToken(token);
-
-                if (userRole != "admin")
-                    return BadRequest("You are not authorized to perform this action.");
-
-                if (productInput == null)
-                    return BadRequest("Product data is required.");
-
-                var product = _productService.UpdateProduct(productId, productInput, imageFile);
-                return Ok(_mapper.Map<ProductDTO>(product));
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while updating product. {ex.Message}");
-            }
+            _productService.UpdateProduct(id, dto, imageFile);
+            var product = _productService.GetProductById(id);
+            return Ok(_mapper.Map<ProductDTO>(product));
         }
 
-        // =============================
-        // UPDATE PRODUCT INFO (no image)
-        // =============================
-        [HttpPut("UpdateProduct/{productId}")]
-        public IActionResult UpdateProduct(int productId, ProductDTO productInput)
-        {
-            try
-            {
-                var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-                var userRole = GetUserRoleFromToken(token);
-
-                if (userRole != "admin")
-                    return BadRequest("You are not authorized to perform this action.");
-
-                if (productInput == null)
-                    return BadRequest("Product data is required.");
-
-                var product = _productService.GetProductById(productId);
-                if (product == null) return NotFound($"Product {productId} not found.");
-
-                _mapper.Map(productInput, product);
-                _ctx.Products.Update(product);
-                _ctx.SaveChangesAsync();
-                return Ok(_mapper.Map<ProductDTO>(product));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while updating product. {ex.Message}");
-            }
-        }
-
-        // =============================
-        // GET PRODUCTS (paged + filtered)
-        // =============================
+        // -------------------------------
+        // Get All Products with Pagination & Filtering
+        // -------------------------------
         [AllowAnonymous]
-        [HttpGet("GetAllProducts")]
-        public IActionResult GetAllProducts([FromQuery] string? name, [FromQuery] decimal? minPrice,
-                                            [FromQuery] decimal? maxPrice, [FromQuery] int pageNumber = 1,
-                                            [FromQuery] int pageSize = 10)
+        [HttpGet("GetProducts")]
+        public IActionResult GetProducts(
+            int page = 1,
+            int pageSize = 10,
+            string? name = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null)
         {
-            try
-            {
-                if (pageNumber < 1 || pageSize < 1)
-                    return BadRequest("PageNumber and PageSize must be greater than 0.");
+            var products = _productService.GetProducts(page, pageSize, name, minPrice, maxPrice);
 
-                var products = _productService.GetAllProducts(pageNumber, pageSize, name, minPrice, maxPrice);
-
-                if (products == null || !products.Any())
-                    return NotFound("No products found matching the given criteria.");
-
-                var result = _mapper.Map<IEnumerable<ProductDTO>>(products);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while retrieving products. {ex.Message}");
-            }
+            var dtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
+            return Ok(dtos);
         }
 
-        // =============================
-        // GET PRODUCT BY ID
-        // =============================
+        // -------------------------------
+        // Get Product by Id
+        // -------------------------------
         [AllowAnonymous]
-        [HttpGet("GetProductByID/{ProductId}")]
-        public IActionResult GetProductById(int ProductId)
+        [HttpGet("{id}")]
+        public IActionResult GetProductById(int id)
         {
-            try
-            {
-                var product = _productService.GetProductById(ProductId);
-                if (product == null)
-                    return NotFound("No product found.");
+            var product = _productService.GetProductById(id);
+            if (product == null) return NotFound();
 
-                return Ok(product);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while retrieving product. {ex.Message}");
-            }
+            var dto = _mapper.Map<ProductDTO>(product);
+            return Ok(dto);
         }
 
-        // =============================
-        // GET PAGED (alternative)
-        // =============================
-        [HttpGet("Paged")]
-        [AllowAnonymous]
-        public IActionResult GetPaged([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20,
-                                      [FromQuery] string? name = null, [FromQuery] decimal? minPrice = null,
-                                      [FromQuery] decimal? maxPrice = null)
+        // -------------------------------
+        // Delete Product
+        // -------------------------------
+        [Authorize(Roles = "admin")]
+        [HttpDelete("{id}")]
+        public IActionResult DeleteProduct(int id)
         {
-            var (items, totalCount) = _productService.GetAllPaged(pageNumber, pageSize, name, minPrice, maxPrice);
-            return Ok(new { pageNumber, pageSize, totalCount, items });
+            var product = _productService.GetProductById(id);
+            if (product == null) return NotFound();
+
+            _productService.DeleteProduct(id);
+            return NoContent();
+        }
+        public bool Exists(int id)
+        {
+            return _ctx.Categories.Any(c => c.CategoryId == id);
+        }
+        public bool Existss(int id)
+        {
+            return _ctx.Suppliers.Any(s => s.SupplierId == id);
         }
 
-        // =============================
-        // JWT Helper
-        // =============================
-        private string? GetUserRoleFromToken(string token)
-        {
-            var handler = new JwtSecurityTokenHandler();
-
-            if (handler.CanReadToken(token))
-            {
-                var jwtToken = handler.ReadJwtToken(token);
-                var roleClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "role" || c.Type == "unique_name");
-                return roleClaim?.Value;
-            }
-
-            throw new UnauthorizedAccessException("Invalid or unreadable token.");
-        }
     }
 }
