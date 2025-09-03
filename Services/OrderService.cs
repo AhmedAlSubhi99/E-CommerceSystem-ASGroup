@@ -46,9 +46,6 @@ namespace E_CommerceSystem.Services
             var order = _orderRepo.GetOrderById(orderId)
                         ?? throw new KeyNotFoundException($"Order {orderId} not found.");
 
-            // Authorization rules:
-            // - Customer can cancel only if it's their order and still Pending.
-            // - Admin/Manager can perform any allowed forward transition.
             if (!isAdminOrManager)
             {
                 if (newStatus != OrderStatus.Cancelled ||
@@ -62,29 +59,22 @@ namespace E_CommerceSystem.Services
             if (!IsValidTransition(order.Status, newStatus))
                 throw new InvalidOperationException($"Invalid status transition {order.Status} → {newStatus}.");
 
-            // If cancelling: restore stock
-            if (newStatus == OrderStatus.Cancelled)
-            {
-                var lines = _orderProductsService.GetOrdersByOrderId(order.OID);
-                foreach (var l in lines)
-                {
-                    var product = _productService.GetProductById(l.PID);
-                    if (product != null)
-                    {
-                        product.Stock += l.Quantity;
-                        _ctx.Products.Update(product);   // update directly with DbContext
-                        _ctx.SaveChangesAsync();
-                    }
-                }
-            }
-
             order.Status = newStatus;
             order.StatusUpdatedAtUtc = DateTime.UtcNow;
-            _orderRepo.UpdateOrder(order);
-            _orderRepo.SaveChangesAsync();
+
+            try
+            {
+                _orderRepo.UpdateOrder(order);
+                _orderRepo.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new InvalidOperationException("This order was modified by another user. Please reload and try again.");
+            }
 
             return _mapper.Map<OrderDTO>(order);
         }
+
         public bool UpdateStatus(int orderId, OrderStatus newStatus)
         {
             var order = _ctx.Orders.FirstOrDefault(o => o.OID == orderId);
@@ -196,7 +186,7 @@ namespace E_CommerceSystem.Services
                 OrderDate = DateTime.Now,
                 TotalAmount = 0m,
                 Status = OrderStatus.Pending,
-                StatusUpdatedAtUtc = DateTime.UtcNow
+                CreatedAtUtc = DateTime.UtcNow
             };
             AddOrder(order);
 
