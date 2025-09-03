@@ -23,7 +23,7 @@ namespace E_CommerceSystem.Services
                 throw new KeyNotFoundException($"Order {orderId} not found.");
 
             // Security: Only owner or admin/manager can access
-            if (order.UserId != userId && role != "admin" && role != "manager")
+            if (order.UID != userId && role != "admin" && role != "manager")
                 throw new UnauthorizedAccessException("You are not allowed to view this invoice.");
 
             // Generate PDF
