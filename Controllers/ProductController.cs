@@ -16,6 +16,7 @@ namespace E_CommerceSystem.Controllers
         private readonly IProductService _productService;
         private readonly ICategoryService _categoryService;
         private readonly ISupplierService _supplierService;
+        private readonly ILogger<ProductController> _logger;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
@@ -24,11 +25,13 @@ namespace E_CommerceSystem.Controllers
             ICategoryService categoryService,
             ISupplierService supplierService,
             ApplicationDbContext ctx,
+            ILogger<ProductController> logger,
             IMapper mapper)
         {
             _productService = productService;
             _categoryService = categoryService;
             _supplierService = supplierService;
+            _logger = logger;
             _ctx = ctx;
             _mapper = mapper;
         }
@@ -40,19 +43,30 @@ namespace E_CommerceSystem.Controllers
         [HttpPost("AddProduct")]
         public IActionResult AddProduct([FromForm] ProductCreateDTO dto)
         {
-            if (dto.ImageFile != null)
+            try
             {
-                var allowedTypes = new[] { "image/jpeg", "image/png" };
-                if (!allowedTypes.Contains(dto.ImageFile.ContentType))
-                    return BadRequest("Only JPEG and PNG images are allowed.");
+                if (dto.ImageFile != null)
+                {
+                    var allowedTypes = new[] { "image/jpeg", "image/png" };
+                    if (!allowedTypes.Contains(dto.ImageFile.ContentType))
+                        return BadRequest("Only JPEG and PNG images are allowed.");
 
-                if (dto.ImageFile.Length > 2 * 1024 * 1024) // 2MB limit
-                    return BadRequest("Image size cannot exceed 2MB.");
+                    if (dto.ImageFile.Length > 2 * 1024 * 1024)
+                        return BadRequest("Image size cannot exceed 2MB.");
+                }
+
+                var product = _mapper.Map<Product>(dto);
+                _productService.AddProduct(product, dto.ImageFile);
+
+                _logger.LogInformation("Product {ProductName} added by {User}", dto.ProductName, User.Identity?.Name);
+
+                return Ok(_mapper.Map<ProductDTO>(product));
             }
-
-            var product = _mapper.Map<Product>(dto);
-            _productService.AddProduct(product, dto.ImageFile);
-            return Ok(_mapper.Map<ProductDTO>(product));
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while adding product {ProductName}", dto.ProductName);
+                return StatusCode(500, "An error occurred while adding the product.");
+            }
         }
 
         // -------------------------------
@@ -62,19 +76,30 @@ namespace E_CommerceSystem.Controllers
         [HttpPut("UpdateProduct/{id}")]
         public IActionResult UpdateProduct(int id, [FromForm] ProductUpdateDTO dto)
         {
-            if (dto.ImageFile != null)
+            try
             {
-                var allowedTypes = new[] { "image/jpeg", "image/png" };
-                if (!allowedTypes.Contains(dto.ImageFile.ContentType))
-                    return BadRequest("Only JPEG and PNG images are allowed.");
+                if (dto.ImageFile != null)
+                {
+                    var allowedTypes = new[] { "image/jpeg", "image/png" };
+                    if (!allowedTypes.Contains(dto.ImageFile.ContentType))
+                        return BadRequest("Only JPEG and PNG images are allowed.");
 
-                if (dto.ImageFile.Length > 2 * 1024 * 1024)
-                    return BadRequest("Image size cannot exceed 2MB.");
+                    if (dto.ImageFile.Length > 2 * 1024 * 1024)
+                        return BadRequest("Image size cannot exceed 2MB.");
+                }
+
+                _productService.UpdateProduct(id, dto, dto.ImageFile);
+                var product = _productService.GetProductById(id);
+
+                _logger.LogInformation("Product {ProductId} updated by {User}", id, User.Identity?.Name);
+
+                return Ok(_mapper.Map<ProductDTO>(product));
             }
-
-            _productService.UpdateProduct(id, dto, dto.ImageFile);
-            var product = _productService.GetProductById(id);
-            return Ok(_mapper.Map<ProductDTO>(product));
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while updating product {ProductId}", id);
+                return StatusCode(500, "An error occurred while updating the product.");
+            }
         }
 
         // -------------------------------

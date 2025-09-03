@@ -23,6 +23,7 @@ namespace E_CommerceSystem.Services
         IEnumerable<Order> GetAllOrders();
         OrderSummaryDTO GetOrderSummary(int orderId);
 
+        public void UpdateOrderStatus(int orderId, OrderStatus newStatus);
 
         // Mutations
         void AddOrder(Order order);

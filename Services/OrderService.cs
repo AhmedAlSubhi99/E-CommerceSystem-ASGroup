@@ -11,6 +11,7 @@ namespace E_CommerceSystem.Services
         private readonly IProductService _productService;
         private readonly IOrderProductsService _orderProductsService;
         private readonly IEmailService _emailService;
+        private readonly ILogger<OrderService> _logger;
         private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
@@ -20,24 +21,26 @@ namespace E_CommerceSystem.Services
             IOrderProductsService orderProductsService,
             IEmailService emailService,
             ApplicationDbContext ctx,
+            ILogger<OrderService> logger,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _productService = productService;
             _orderProductsService = orderProductsService;
             _emailService = emailService;
+            _logger = logger;
             _ctx = ctx;
             _mapper = mapper;
         }
-        private static bool IsValidTransition(OrderStatus from, OrderStatus to)
+        private bool IsValidTransition(OrderStatus current, OrderStatus next)
         {
-            return (from, to) switch
+            return current switch
             {
-                (OrderStatus.Pending, OrderStatus.Paid) => true,
-                (OrderStatus.Pending, OrderStatus.Cancelled) => true,
-                (OrderStatus.Paid, OrderStatus.Shipped) => true,
-                (OrderStatus.Shipped, OrderStatus.Delivered) => true,
-                // Disallow regressions & skipping critical steps
+                OrderStatus.Pending => next == OrderStatus.Paid || next == OrderStatus.Cancelled,
+                OrderStatus.Paid => next == OrderStatus.Shipped || next == OrderStatus.Cancelled,
+                OrderStatus.Shipped => next == OrderStatus.Delivered || next == OrderStatus.Cancelled,
+                OrderStatus.Delivered => false, 
+                OrderStatus.Cancelled => false,
                 _ => false
             };
         }
@@ -165,12 +168,9 @@ namespace E_CommerceSystem.Services
 
         public async Task PlaceOrder(List<OrderItemDTO> items, int uid)
         {
-            if (items == null || items.Count == 0)
-                throw new ArgumentException("Order items cannot be empty.", nameof(items));
+            _logger.LogInformation("User {UserId} is placing an order with {ItemCount} items", uid, items.Count);
 
             decimal totalOrderPrice = 0m;
-
-            // Create order shell
             var order = new Order
             {
                 UID = uid,
@@ -196,18 +196,17 @@ namespace E_CommerceSystem.Services
                     PID = product.PID,
                     Quantity = item.Quantity
                 };
-
                 _orderProductsService.AddOrderProducts(orderProducts);
 
                 try
                 {
                     _ctx.Products.Update(product);
-                    _ctx.SaveChanges();
+                    await _ctx.SaveChangesAsync();
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateConcurrencyException ex)
                 {
-                    throw new InvalidOperationException(
-                        $"Concurrency conflict: {product.ProductName} was updated by another user. Please try again.");
+                    _logger.LogError(ex, "Concurrency conflict when updating product {ProductId}", product.PID);
+                    throw;
                 }
 
                 totalOrderPrice += item.Quantity * product.Price;
@@ -216,12 +215,18 @@ namespace E_CommerceSystem.Services
             order.TotalAmount = totalOrderPrice;
             UpdateOrder(order);
 
-            // Send email after success
             var user = _ctx.Users.FirstOrDefault(u => u.UID == uid);
             if (user != null)
             {
- 
+                try
+                {
                     await _emailService.SendOrderPlacedEmail(user.Email, order.OID, totalOrderPrice);
+                    _logger.LogInformation("Order {OrderId} placed successfully, email sent to {Email}", order.OID, user.Email);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send order confirmation email for Order {OrderId}", order.OID);
+                }
             }
         }
 
@@ -254,17 +259,29 @@ namespace E_CommerceSystem.Services
         {
             var order = _ctx.Orders.FirstOrDefault(o => o.OID == orderId && o.UID == uid);
             if (order == null)
+            {
+                _logger.LogWarning("User {UserId} attempted to cancel non-existing order {OrderId}", uid, orderId);
                 throw new Exception("Order not found");
+            }
 
             order.Status = OrderStatus.Cancelled;
             _ctx.Orders.Update(order);
             await _ctx.SaveChangesAsync();
 
+            _logger.LogInformation("Order {OrderId} cancelled by User {UserId}", orderId, uid);
+
             var user = _ctx.Users.FirstOrDefault(u => u.UID == uid);
             if (user != null)
             {
+                try
+                {
                     await _emailService.SendOrderCancelledEmail(user.Email, orderId);
-
+                    _logger.LogInformation("Cancellation email sent to {Email} for Order {OrderId}", user.Email, orderId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send cancellation email for Order {OrderId}", orderId);
+                }
             }
         }
         public OrderSummaryDTO GetOrderSummary(int orderId)
@@ -293,5 +310,34 @@ namespace E_CommerceSystem.Services
                 }).ToList()
             };
         }
+        public void UpdateOrderStatus(int orderId, OrderStatus newStatus)
+        {
+            var order = _ctx.Orders.FirstOrDefault(o => o.OID == orderId);
+            if (order == null)
+            {
+                _logger.LogWarning("Attempt to update non-existing order {OrderId}", orderId);
+                throw new Exception("Order not found");
+            }
+
+            if (!IsValidTransition(order.Status, newStatus))
+            {
+                _logger.LogWarning("Invalid status transition for Order {OrderId}: {OldStatus} → {NewStatus}",
+                    orderId, order.Status, newStatus);
+                throw new InvalidOperationException(
+                    $"Cannot change order status from {order.Status} to {newStatus}");
+            }
+
+            _logger.LogInformation("Order {OrderId} status changing from {OldStatus} to {NewStatus}",
+                orderId, order.Status, newStatus);
+
+            order.Status = newStatus;
+            _ctx.Orders.Update(order);
+            _ctx.SaveChanges();
+
+            _logger.LogInformation("Order {OrderId} status updated successfully to {NewStatus}",
+                orderId, newStatus);
+        }
+
+
     }
 }

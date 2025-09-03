@@ -15,17 +15,20 @@ namespace E_CommerceSystem.Controllers
         private readonly IOrderService _orderService;
         private readonly IOrderSummaryService _orderSummaryService;
         private readonly IInvoiceService _invoiceService;
+        private readonly ILogger<OrderController> _logger;
         private readonly IMapper _mapper;
 
         public OrderController(
             IOrderService orderService,
             IOrderSummaryService orderSummaryService,
             IInvoiceService invoiceService,
+            ILogger<OrderController> logger,
             IMapper mapper)
         {
             _orderService = orderService;
             _orderSummaryService = orderSummaryService;
             _invoiceService = invoiceService;
+            _logger = logger;
             _mapper = mapper;
         }
 
@@ -197,6 +200,22 @@ namespace E_CommerceSystem.Controllers
         }
 
 
+        [Authorize(Roles = "admin,manager")]
+        [HttpPut("UpdateStatus/{orderId}")]
+        public IActionResult UpdateOrderStatus(int orderId, [FromBody] OrderStatus newStatus)
+        {
+            try
+            {
+                _orderService.UpdateOrderStatus(orderId, newStatus);
+                return Ok($"Order {orderId} status updated to {newStatus}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update status for Order {OrderId}", orderId);
+                return BadRequest(ex.Message);
+            }
+        }
+
 
         // ---------------------------
         // Helpers
@@ -208,5 +227,7 @@ namespace E_CommerceSystem.Controllers
                 throw new UnauthorizedAccessException("Invalid user id in token.");
             return userId;
         }
+
+
     }
 }
