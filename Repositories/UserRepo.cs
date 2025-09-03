@@ -109,5 +109,33 @@ namespace E_CommerceSystem.Repositories
                 throw new InvalidOperationException($"Database error: {ex.Message}");
             }
         }
+        public User? GetByEmail(string email)
+        {
+            return _context.Users.FirstOrDefault(u => u.Email == email);
+        }
+
+        public RefreshToken? GetRefreshToken(string token)
+        {
+            return _context.RefreshTokens.FirstOrDefault(r => r.Token == token);
+        }
+
+        public void UpdateRefreshToken(RefreshToken refreshToken)
+        {
+            _context.RefreshTokens.Update(refreshToken);
+            _context.SaveChanges();
+        }
+        public void Update(User user)
+        {
+            _context.Users.Update(user);
+            _context.SaveChanges();
+        }
+
+
+        public User? GetById(int id)
+        {
+            return _context.Users.FirstOrDefault(u => u.UID == id);
+        }
+
+
     }
 }

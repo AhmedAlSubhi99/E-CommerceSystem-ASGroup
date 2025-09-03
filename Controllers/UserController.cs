@@ -18,6 +18,7 @@ namespace E_CommerceSystem.Controllers
         private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly ILogger<UserController> _logger;
 
         public UserController(IUserService userService, IConfiguration configuration, IMapper mapper)
         {
@@ -25,7 +26,17 @@ namespace E_CommerceSystem.Controllers
             _configuration = configuration;
             _mapper = mapper;
         }
-
+        public UserController(
+            IUserService userService,
+            IConfiguration configuration,
+            IMapper mapper,
+            ILogger<UserController> logger)
+        {
+            _userService = userService;
+            _configuration = configuration;
+            _mapper = mapper;
+            _logger = logger;
+        }
         [NonAction]
         public string GenerateJwtToken(string userId, string username, string role)
         {
@@ -68,30 +79,43 @@ namespace E_CommerceSystem.Controllers
                 return Ok(_mapper.Map<UserDTO>(user));
         }
 
-
         [AllowAnonymous]
         [HttpPost("Login")]
         public IActionResult Login([FromBody] LoginDto loginDto)
         {
-            var user = _userService.Authenticate(loginDto.Email, loginDto.Password);
+            var user = _userService.ValidateUser(loginDto.Email, loginDto.Password);
             if (user == null)
                 return Unauthorized("Invalid email or password");
 
-            var token = _userService.GenerateJwtToken(user);
+            var accessToken = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
+            var refreshToken = _userService.GenerateRefreshToken();
+            _userService.SaveRefreshToken(user.UID, refreshToken);
 
-            // Store token in HttpOnly cookie
-            var cookieOptions = new CookieOptions
+            // Store both in cookies
+            Response.Cookies.Append("AuthToken", accessToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,           // only over HTTPS
+                Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(30) // match token lifetime
-            };
+                Expires = DateTime.UtcNow.AddMinutes(30)
+            });
 
-            Response.Cookies.Append("AuthToken", token, cookieOptions);
+            Response.Cookies.Append("RefreshToken", refreshToken.Token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = refreshToken.Expires
+            });
 
-            return Ok(new { message = "Login successful" });
+            var response = _mapper.Map<LoginResponseDTO>(user);
+            response.AccessToken = accessToken;
+            response.RefreshToken = refreshToken.Token;
+
+            return Ok(response);
         }
+
+
 
         // -------------------------------
         // Logout 
@@ -103,6 +127,7 @@ namespace E_CommerceSystem.Controllers
             {
                 // Remove the cookie
                 Response.Cookies.Delete("AuthToken");
+                Response.Cookies.Delete("RefreshToken");
 
                 _logger.LogInformation("User {User} logged out successfully at {Time}",
                     User.Identity?.Name ?? "Unknown", DateTime.UtcNow);
@@ -125,7 +150,45 @@ namespace E_CommerceSystem.Controllers
             return Ok(dto);
         }
 
-        
+
+        [AllowAnonymous]
+        [HttpPost("Refresh")]
+        public IActionResult Refresh()
+        {
+            var refreshToken = Request.Cookies["RefreshToken"];
+            if (string.IsNullOrEmpty(refreshToken))
+                return Unauthorized("Refresh token missing");
+
+            var storedToken = _userService.GetRefreshToken(refreshToken);
+            if (storedToken == null || storedToken.IsExpired || storedToken.IsRevoked)
+                return Unauthorized("Invalid refresh token");
+
+            var user = _userService.GetUserById(storedToken.UserId);
+            if (user == null)
+                return Unauthorized("User not found");
+
+            var newAccessToken = GenerateJwtToken(user.UID.ToString(), user.UName, user.Role);
+            var newRefreshToken = _userService.GenerateRefreshToken();
+            _userService.SaveRefreshToken(user.UID, newRefreshToken);
+
+            Response.Cookies.Append("AuthToken", newAccessToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddMinutes(30)
+            });
+
+            Response.Cookies.Append("RefreshToken", newRefreshToken.Token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = newRefreshToken.Expires
+            });
+
+            return Ok(new { AccessToken = newAccessToken, RefreshToken = newRefreshToken.Token });
+        }
 
 
     }

@@ -16,6 +16,7 @@ namespace E_CommerceSystem
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -24,6 +25,11 @@ namespace E_CommerceSystem
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+            modelBuilder.Entity<RefreshToken>()
+        .HasOne(r => r.User)
+        .WithMany(u => u.RefreshTokens)
+        .HasForeignKey(r => r.UserId)
+        .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)

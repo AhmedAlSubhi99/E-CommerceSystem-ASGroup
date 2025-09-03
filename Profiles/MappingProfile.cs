@@ -68,5 +68,11 @@ public class MappingProfile : Profile
         // OrderItem 
         // -----------------
         CreateMap<OrderProducts, OrderItemDTO>().ReverseMap();
+
+        //  User ↔ UserDTO
+        CreateMap<User, UserDTO>().ReverseMap();
+
+        //  User → LoginResponseDTO
+        CreateMap<User, LoginResponseDTO>();
     }
 }
