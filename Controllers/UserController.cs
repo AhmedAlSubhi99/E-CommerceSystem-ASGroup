@@ -20,7 +20,7 @@ namespace E_CommerceSystem.Controllers
         private readonly IMapper _mapper;
         private readonly ILogger<UserController> _logger;
 
-        // ✅ Only one constructor (no DI conflicts)
+        //  Only one constructor (no DI conflicts)
         public UserController(
             IUserService userService,
             IConfiguration configuration,
@@ -82,10 +82,10 @@ namespace E_CommerceSystem.Controllers
             var user = _mapper.Map<User>(inputUser);
             user.CreatedAt = DateTime.UtcNow;
 
-            // ✅ Hash password before saving
+            //  Hash password before saving
             user.Password = BCrypt.Net.BCrypt.HashPassword(inputUser.Password);
 
-            // ✅ Default role if not provided
+            //  Default role if not provided
             if (string.IsNullOrEmpty(user.Role))
                 user.Role = "Customer";
 
@@ -110,7 +110,7 @@ namespace E_CommerceSystem.Controllers
             var refreshToken = _userService.GenerateRefreshToken();
             _userService.SaveRefreshToken(user.UID, refreshToken);
 
-            // ✅ Store in cookies
+            //  Store in cookies
             Response.Cookies.Append("AuthToken", accessToken, new CookieOptions
             {
                 HttpOnly = true,
