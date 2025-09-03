@@ -1,57 +1,56 @@
-﻿// Controllers/SupplierController.cs
-using AutoMapper;
-using E_CommerceSystem.Models;
+﻿using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-[ApiController]
-[Route("api/[controller]")]
-public class SupplierController : ControllerBase
+namespace E_CommerceSystem.Controllers
 {
-    private readonly ISupplierService _service;
-    private readonly IMapper _mapper;
-    public SupplierController(ISupplierService service, IMapper mapper)
-    { _service = service; _mapper = mapper; }
-
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<SupplierDTO>>> GetAll()
+    [Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class SupplierController : ControllerBase
     {
-        var items = await _service.GetAllAsync();
-        return Ok(_mapper.Map<IEnumerable<SupplierDTO>>(items));
-    }
+        private readonly ISupplierService _service;
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<SupplierDTO>> GetById(int id)
-    {
-        var sup = await _service.GetByIdAsync(id);
-        if (sup is null) return NotFound($"Supplier {id} not found.");
-        return Ok(_mapper.Map<SupplierDTO>(sup));
-    }
+        public SupplierController(ISupplierService service)
+        {
+            _service = service;
+        }
 
-    [HttpPost]
-    public async Task<ActionResult<SupplierDTO>> Create([FromBody] SupplierCreateDto dto)
-    {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        [HttpGet]
+        public IActionResult GetAll() => Ok(_service.GetAll());
 
-        var created = await _service.CreateAsync(dto);
-        var readDto = _mapper.Map<SupplierDTO>(created);
+        [HttpGet("{id:int}")]
+        public IActionResult GetById(int id)
+        {
+            var dto = _service.GetById(id);
+            return dto == null ? NotFound($"Supplier with ID {id} not found.") : Ok(dto);
+        }
 
-        return CreatedAtAction(nameof(GetById), new { id = readDto.SupplierId }, readDto);
-    }
+        [Authorize(Roles = "admin,manager")]
+        [HttpPost]
+        public IActionResult Create([FromBody] SupplierDTO dto)
+        {
+            var created = _service.Create(dto);
+            return CreatedAtAction(nameof(GetById), new { id = created.SupplierId }, created);
+        }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] SupplierUpdateDto dto)
-    {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        [Authorize(Roles = "admin,manager")]
+        [HttpPut("{id:int}")]
+        public IActionResult Update(int id, [FromBody] SupplierDTO dto)
+        {
+            return _service.Update(id, dto)
+                ? NoContent()
+                : NotFound($"Supplier with ID {id} not found.");
+        }
 
-        var ok = await _service.UpdateAsync(id, dto);
-        return ok ? NoContent() : NotFound($"Supplier {id} not found.");
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var ok = await _service.DeleteAsync(id);
-        return ok ? NoContent() : NotFound($"Supplier {id} not found.");
+        [Authorize(Roles = "admin")]
+        [HttpDelete("{id:int}")]
+        public IActionResult Delete(int id)
+        {
+            return _service.Delete(id)
+                ? NoContent()
+                : NotFound($"Supplier with ID {id} not found.");
+        }
     }
 }

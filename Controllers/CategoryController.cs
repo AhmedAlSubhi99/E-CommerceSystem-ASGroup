@@ -1,57 +1,56 @@
-﻿// Controllers/CategoryController.cs
-using AutoMapper;
-using E_CommerceSystem.Models;
+﻿using E_CommerceSystem.Models;
 using E_CommerceSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-[ApiController]
-[Route("api/[controller]")]
-public class CategoryController : ControllerBase
+namespace E_CommerceSystem.Controllers
 {
-    private readonly ICategoryService _service;
-    private readonly IMapper _mapper;
-    public CategoryController(ICategoryService service, IMapper mapper)
-    { _service = service; _mapper = mapper; }
-
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetAll()
+    [Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class CategoryController : ControllerBase
     {
-        var cats = await _service.GetAllAsync();
-        return Ok(_mapper.Map<IEnumerable<CategoryDTO>>(cats));
-    }
+        private readonly ICategoryService _service;
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<CategoryDTO>> GetById(int id)
-    {
-        var cat = await _service.GetByIdAsync(id);
-        if (cat is null) return NotFound($"Category {id} not found.");
-        return Ok(_mapper.Map<CategoryDTO>(cat));
-    }
+        public CategoryController(ICategoryService service)
+        {
+            _service = service;
+        }
 
-    [HttpPost]
-    public async Task<ActionResult<CategoryDTO>> Create([FromBody] CategoryCreateDTO dto)
-    {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        [HttpGet]
+        public IActionResult GetAll() => Ok(_service.GetAll());
 
-        var created = await _service.CreateAsync(dto);
-        var readDto = _mapper.Map<CategoryDTO>(created);
+        [HttpGet("{id:int}")]
+        public IActionResult GetById(int id)
+        {
+            var dto = _service.GetById(id);
+            return dto == null ? NotFound($"Category with ID {id} not found.") : Ok(dto);
+        }
 
-        return CreatedAtAction(nameof(GetById), new { id = readDto.CategoryId }, readDto);
-    }
+        [Authorize(Roles = "admin,manager")]
+        [HttpPost]
+        public IActionResult Create([FromBody] CategoryDTO dto)
+        {
+            var created = _service.Create(dto);
+            return CreatedAtAction(nameof(GetById), new { id = created.CategoryId }, created);
+        }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] CategoryUpdateDto dto)
-    {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        [Authorize(Roles = "admin,manager")]
+        [HttpPut("{id:int}")]
+        public IActionResult Update(int id, [FromBody] CategoryDTO dto)
+        {
+            return _service.Update(id, dto)
+                ? NoContent()
+                : NotFound($"Category with ID {id} not found.");
+        }
 
-        var ok = await _service.UpdateAsync(id, dto);
-        return ok ? NoContent() : NotFound($"Category {id} not found.");
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var ok = await _service.DeleteAsync(id);
-        return ok ? NoContent() : NotFound($"Category {id} not found.");
+        [Authorize(Roles = "admin")]
+        [HttpDelete("{id:int}")]
+        public IActionResult Delete(int id)
+        {
+            return _service.Delete(id)
+                ? NoContent()
+                : NotFound($"Category with ID {id} not found.");
+        }
     }
 }

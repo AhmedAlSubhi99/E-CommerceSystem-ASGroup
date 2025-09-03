@@ -1,54 +1,45 @@
 ﻿using AutoMapper;
-using E_CommerceSystem;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
-using E_CommerceSystem.Services;
-using Microsoft.EntityFrameworkCore;
 
-
-public class CategoryService : ICategoryService
+namespace E_CommerceSystem.Services
 {
-    private readonly ApplicationDbContext _ctx;
-    private readonly IMapper _mapper;
-
-    public CategoryService(ApplicationDbContext ctx, IMapper mapper)
+    public class CategoryService : ICategoryService
     {
-        _ctx = ctx;
-        _mapper = mapper;
-    }
+        private readonly ICategoryRepo _repo;
+        private readonly IMapper _mapper;
 
-    public async Task<IEnumerable<Category>> GetAllAsync() =>
-           await _ctx.Categories.AsNoTracking().ToListAsync();
+        public CategoryService(ICategoryRepo repo, IMapper mapper)
+        {
+            _repo = repo;
+            _mapper = mapper;
+        }
 
-    public async Task<Category?> GetByIdAsync(int id) =>
-       await _ctx.Categories.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == id);
+        public IEnumerable<CategoryDTO> GetAll() =>
+            _mapper.Map<IEnumerable<CategoryDTO>>(_repo.GetAll());
 
-    public async Task<Category> CreateAsync(CategoryCreateDTO dto)
-    {
-        var entity = _mapper.Map<Category>(dto);
-        _ctx.Categories.Add(entity);
-        await _ctx.SaveChangesAsync();
-        return entity;
-    }
+        public CategoryDTO? GetById(int id)
+        {
+            var entity = _repo.GetById(id);
+            return entity == null ? null : _mapper.Map<CategoryDTO>(entity);
+        }
 
-    public async Task<bool> UpdateAsync(int id, CategoryUpdateDto dto)
-    {
-        var existing = await _ctx.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
-        if (existing is null) return false;
+        public CategoryDTO Create(CategoryDTO input)
+        {
+            var entity = _mapper.Map<Category>(input);
+            _repo.Add(entity);
+            return _mapper.Map<CategoryDTO>(entity);
+        }
 
-        _mapper.Map(dto, existing); // maps Name/Description
-        await _ctx.SaveChangesAsync();
-        return true;
-    }
+        public bool Update(int id, CategoryDTO input)
+        {
+            var existing = _repo.GetById(id);
+            if (existing == null) return false;
+            _mapper.Map(input, existing);
+            _repo.Update(existing);
+            return true;
+        }
 
-
-    public async Task<bool> DeleteAsync(int id)
-    {
-        var existing = await _ctx.Categories.FirstOrDefaultAsync(x => x.CategoryId == id);
-        if (existing is null) return false;
-
-        _ctx.Categories.Remove(existing);
-        await _ctx.SaveChangesAsync();
-        return true;
+        public bool Delete(int id) => _repo.Delete(id);
     }
 }

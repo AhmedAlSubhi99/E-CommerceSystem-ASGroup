@@ -4,10 +4,10 @@ namespace E_CommerceSystem.Services
 {
     public interface ISupplierService
     {
-        Task<IEnumerable<Supplier>> GetAllAsync();
-        Task<Supplier?> GetByIdAsync(int id);
-        Task<Supplier> CreateAsync(SupplierCreateDto dto);
-        Task<bool> UpdateAsync(int id, SupplierUpdateDto dto);
-        Task<bool> DeleteAsync(int id);
+        IEnumerable<SupplierDTO> GetAll();
+        public SupplierDTO? GetById(int id);
+        public SupplierDTO Create(SupplierDTO input);
+        public bool Update(int id, SupplierDTO input);
+        public bool Delete(int id);
     }
 }

@@ -4,10 +4,11 @@ namespace E_CommerceSystem.Repositories
 {
     public interface ISupplierRepo
     {
-        Task<IEnumerable<Supplier>> GetAllAsync();
-        Task<Supplier?> GetByIdAsync(int id);
-        Task AddAsync(Supplier supplier);
-        Task UpdateAsync(Supplier supplier);
-        Task DeleteAsync(int id);
+        IEnumerable<Supplier> GetAll();
+        public Supplier? GetById(int id);
+        public void Add(Supplier entity);
+        public void Update(Supplier entity);
+        public bool Delete(int id);
+        public bool Exists(int id);
     }
 }

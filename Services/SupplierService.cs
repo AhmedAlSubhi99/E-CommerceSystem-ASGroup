@@ -1,55 +1,45 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
-using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Services
 {
     public class SupplierService : ISupplierService
     {
         private readonly ISupplierRepo _repo;
-        private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
-        public SupplierService(ISupplierRepo repo, ApplicationDbContext ctx, IMapper mapper)
+
+        public SupplierService(ISupplierRepo repo, IMapper mapper)
         {
             _repo = repo;
-            _ctx = ctx;
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<Supplier>> GetAllAsync() =>
-           await _ctx.Suppliers.AsNoTracking().ToListAsync();
+        public IEnumerable<SupplierDTO> GetAll() =>
+            _mapper.Map<IEnumerable<SupplierDTO>>(_repo.GetAll());
 
-
-        public async Task<Supplier?> GetByIdAsync(int id) =>
-          await _ctx.Suppliers.AsNoTracking().FirstOrDefaultAsync(x => x.SupplierId == id);
-
-        public async Task<Supplier> CreateAsync(SupplierCreateDto dto)
+        public SupplierDTO? GetById(int id)
         {
-            var entity = _mapper.Map<Supplier>(dto);
-            _ctx.Suppliers.Add(entity);
-            await _ctx.SaveChangesAsync();
-            return entity;
+            var entity = _repo.GetById(id);
+            return entity == null ? null : _mapper.Map<SupplierDTO>(entity);
         }
 
-        public async Task<bool> UpdateAsync(int id, SupplierUpdateDto dto)
+        public SupplierDTO Create(SupplierDTO input)
         {
-            var existing = await _ctx.Suppliers.FirstOrDefaultAsync(x => x.SupplierId == id);
-            if (existing is null) return false;
+            var entity = _mapper.Map<Supplier>(input);
+            _repo.Add(entity);
+            return _mapper.Map<SupplierDTO>(entity);
+        }
 
-            _mapper.Map(dto, existing);
-            await _ctx.SaveChangesAsync();
+        public bool Update(int id, SupplierDTO input)
+        {
+            var existing = _repo.GetById(id);
+            if (existing == null) return false;
+            _mapper.Map(input, existing);
+            _repo.Update(existing);
             return true;
         }
 
-        public async Task<bool> DeleteAsync(int id)
-        {
-            var existing = await _ctx.Suppliers.FirstOrDefaultAsync(x => x.SupplierId == id);
-            if (existing is null) return false;
-
-            _ctx.Suppliers.Remove(existing);
-            await _ctx.SaveChangesAsync();
-            return true;
-        }
+        public bool Delete(int id) => _repo.Delete(id);
     }
 }
