@@ -39,7 +39,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Order", b =>
@@ -79,7 +79,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("UID");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.OrderProducts", b =>
@@ -97,7 +97,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("PID");
 
-                    b.ToTable("OrderProducts");
+                    b.ToTable("OrderProducts", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Product", b =>
@@ -147,7 +147,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Review", b =>
@@ -180,7 +180,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasIndex("UID");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Supplier", b =>
@@ -205,7 +205,7 @@ namespace E_CommerceSystem.Migrations
 
                     b.HasKey("SupplierId");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.User", b =>
@@ -244,7 +244,7 @@ namespace E_CommerceSystem.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("E_CommerceSystem.Models.Order", b =>
