@@ -277,13 +277,11 @@ namespace E_CommerceSystem.Services
             {
                 OrderId = order.OID,
                 CustomerName = order.user.UName,  
-                CreatedAt = order.OrderDate,
-                Status = order.Status,
-                Subtotal = order.OrderProducts.Sum(op => op.Quantity * op.product.Price),
-                Total = order.TotalAmount,  
+                OrderDate = order.OrderDate,
+                Status = order.Status.ToString(),
+                TotalAmount = order.TotalAmount,  
                 Lines = order.OrderProducts.Select(op => new OrderLineDTO
                 {
-                    ProductId = op.PID,
                     ProductName = op.product.ProductName,
                     Quantity = op.Quantity,
                     UnitPrice = op.product.Price
