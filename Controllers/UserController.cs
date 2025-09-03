@@ -57,8 +57,6 @@ namespace E_CommerceSystem.Controllers
         [HttpPost("Register")]
         public IActionResult Register(UserDTO InputUser)
         {
-            try
-            {
                 if(InputUser == null)
                     return BadRequest("User data is required");
 
@@ -68,12 +66,6 @@ namespace E_CommerceSystem.Controllers
                 _userService.AddUser(user);
 
                 return Ok(_mapper.Map<UserDTO>(user));
-            }
-            catch (Exception ex)
-            {
-                // Return a generic error response
-                return StatusCode(500, $"An error occurred while adding the user. {ex.Message} ");
-            }
         }
 
 
