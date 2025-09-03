@@ -59,7 +59,7 @@ namespace E_CommerceSystem.Services
             if (!IsValidTransition(order.Status, newStatus))
                 throw new InvalidOperationException($"Invalid status transition {order.Status} → {newStatus}.");
 
-            // If cancelling: (optional) restore stock
+            // If cancelling: restore stock
             if (newStatus == OrderStatus.Cancelled)
             {
                 var lines = _orderProductsService.GetOrdersByOrderId(order.OID);
@@ -81,6 +81,31 @@ namespace E_CommerceSystem.Services
 
             return _mapper.Map<OrderDTO>(order);
         }
+        public bool UpdateStatus(int orderId, OrderStatus newStatus)
+        {
+            var order = _ctx.Orders.FirstOrDefault(o => o.OID == orderId);
+            if (order == null) return false;
+
+            // If already closed (Cancelled or Delivered), block further changes
+            if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Delivered)
+                return false;
+
+            // Allowed transitions
+            bool valid = order.Status switch
+            {
+                OrderStatus.Pending => newStatus == OrderStatus.Paid || newStatus == OrderStatus.Cancelled,
+                OrderStatus.Paid => newStatus == OrderStatus.Shipped || newStatus == OrderStatus.Cancelled,
+                OrderStatus.Shipped => newStatus == OrderStatus.Delivered,
+                _ => false
+            };
+
+            if (!valid) return false;
+
+            order.Status = newStatus;
+            _ctx.SaveChanges();
+            return true;
+        }
+
 
         // Fetches ALL order lines (OrderProducts) for a given user
         public List<OrderProducts> GetAllOrders(int uid)

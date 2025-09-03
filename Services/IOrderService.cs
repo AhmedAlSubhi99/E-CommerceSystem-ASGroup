@@ -27,6 +27,7 @@ namespace E_CommerceSystem.Services
         void AddOrder(Order order);
         void UpdateOrder(Order order);
         void DeleteOrder(int oid);
+        bool UpdateStatus(int orderId, OrderStatus newStatus);
 
         // Place order (keep one signature)
         void PlaceOrder(List<OrderItemDTO> items, int uid);

@@ -193,5 +193,13 @@ namespace E_CommerceSystem.Controllers
             var summary = _orderSummaryService.GetSummary(from, to);
             return Ok(summary);
         }
+        // Admin-only status update endpoint
+        [HttpPatch("{orderId:int}/status")]
+        [Authorize(Roles = "admin")]
+        public IActionResult UpdateStatus(int orderId, [FromBody] OrderStatus newStatus)
+        {
+            var ok = _orderService.UpdateStatus(orderId, newStatus);
+            return ok ? NoContent() : BadRequest("Invalid status transition or order not found.");
+        }
     }
 }
