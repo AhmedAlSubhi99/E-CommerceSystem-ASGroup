@@ -78,6 +78,9 @@ namespace E_CommerceSystem
 
             builder.Services.AddSwaggerGen(c =>
             {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "E-Commerce API", Version = "v1" });
+
+                // JWT Security Setup
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Description = "JWT Authorization header using the Bearer scheme (Example: 'Bearer <token>')",
@@ -101,7 +104,12 @@ namespace E_CommerceSystem
             new string[] {}
         }
     });
+
+                // Tell Swagger to support file uploads in form-data
+                c.OperationFilter<FileUploadOperationFilter>();
             });
+
+
             var app = builder.Build();
 
 
@@ -115,10 +123,9 @@ namespace E_CommerceSystem
             }
 
             app.UseHttpsRedirection();
-
+            app.UseStaticFiles();
             app.UseAuthentication(); //jwt check middleware
             app.UseAuthorization();
-            app.UseStaticFiles();           // serve wwwroot
 
 
             app.MapControllers();

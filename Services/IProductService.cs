@@ -4,12 +4,11 @@ namespace E_CommerceSystem.Services
 {
     public interface IProductService
     {
-        void AddProduct(Product product);
+        Product AddProduct(ProductDTO productInput, IFormFile? imageFile);
+        Product UpdateProduct(int productId, ProductDTO productInput, IFormFile? imageFile);
         IEnumerable<Product> GetAllProducts(int pageNumber, int pageSize, string? name = null, decimal? minPrice = null, decimal? maxPrice = null);
         Product GetProductById(int pid);
-        void UpdateProduct(Product product);
         Product GetProductByName(string productName);
-        //Task<string> UpdateImageAsync(int productId, IFormFile imageFile, CancellationToken ct = default);
 
         (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(
     int pageNumber = 1,
@@ -19,7 +18,8 @@ namespace E_CommerceSystem.Services
     decimal? maxPrice = null);
         void IncrementStock(int productId, int quantity);
 
-        
+        Task<string?> UploadImageAsync(int productId, IFormFile file, string uploadPath);
+
 
     }
 }

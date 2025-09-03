@@ -69,7 +69,8 @@ namespace E_CommerceSystem.Services
                     if (product != null)
                     {
                         product.Stock += l.Quantity;
-                        _productService.UpdateProduct(product);
+                        _ctx.Products.Update(product);   // update directly with DbContext
+                        _ctx.SaveChangesAsync();
                     }
                 }
             }
@@ -207,7 +208,8 @@ namespace E_CommerceSystem.Services
                 };
 
                 _orderProductsService.AddOrderProducts(orderProducts);
-                _productService.UpdateProduct(product);
+                _ctx.Products.Update(product);
+                _ctx.SaveChangesAsync();
             }
 
             //  Finalize order total

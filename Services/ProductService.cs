@@ -13,15 +13,16 @@ namespace E_CommerceSystem.Services
     {
         private readonly IProductRepo _productRepo;
         private readonly IWebHostEnvironment _env;
-
+        private readonly ApplicationDbContext _ctx;
         private readonly IMapper _mapper;
 
 
 
-        public ProductService(IProductRepo productRepo, IWebHostEnvironment env, IMapper mapper)
+        public ProductService(IProductRepo productRepo, IWebHostEnvironment env, ApplicationDbContext ctx, IMapper mapper)
         {
             _productRepo = productRepo;
             _mapper = mapper;
+            _ctx = ctx;
             _env = env;
 
         }
@@ -65,84 +66,66 @@ namespace E_CommerceSystem.Services
             return product;
         }
 
-        public void AddProduct(Product product)
+        public Product AddProduct(ProductDTO productInput, IFormFile? imageFile)
         {
-            _productRepo.AddProduct(product);
+            var product = _mapper.Map<Product>(productInput);
+
+            if (imageFile is not null && imageFile.Length > 0)
+            {
+                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
+                var url = UploadImageAsync(0, imageFile, uploadPath).Result;
+                product.ImageUrl = url;
+            }
+
+            _ctx.Products.Add(product);
+            _ctx.SaveChanges();
+            return product;
         }
 
-        //public async Task<string> UpdateImageAsync(int productId, IFormFile imageFile, CancellationToken ct = default)
-        //{
-        //    //var product = await _productRepo.GetByIdAsync(productId, ct)
-        //        ?? throw new KeyNotFoundException($"Product {productId} not found.");
-
-        //    // 1) Validate
-        //    var permitted = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        //    var ext = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
-        //    if (string.IsNullOrWhiteSpace(ext) || !permitted.Contains(ext))
-        //        throw new InvalidOperationException("Unsupported image type. Allowed: .jpg, .jpeg, .png, .webp");
-        //    if (imageFile.Length > 5 * 1024 * 1024)
-        //        throw new InvalidOperationException("Image too large (max 5 MB).");
-
-        //    // 2) Prepare paths
-        //    var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
-        //                                     "uploads", "products");
-        //    Directory.CreateDirectory(uploadsFolder);
-
-        //    // unique filename: productId + GUID to avoid cache collisions
-        //    var fileName = $"{productId}_{Guid.NewGuid():N}{ext}";
-        //    var fullPath = Path.Combine(uploadsFolder, fileName);
-
-        //    // 3) Save new file
-        //    await using (var stream = new FileStream(fullPath, FileMode.Create))
-        //        await imageFile.CopyToAsync(stream, ct);
-
-        //    // 4) Delete old image (only if it lives under our uploads folder)
-        //    if (!string.IsNullOrWhiteSpace(product.ImageUrl))
-        //    {
-        //        // ImageUrl is stored like: /uploads/products/oldname.png
-        //        var rootedOld = (product.ImageUrl.StartsWith("/"))
-        //            ? Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
-        //                           product.ImageUrl.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-        //            : Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
-        //                           product.ImageUrl.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
-        //        try
-        //        {
-        //            if (rootedOld.StartsWith(uploadsFolder, StringComparison.OrdinalIgnoreCase) && File.Exists(rootedOld))
-        //                File.Delete(rootedOld);
-        //        }
-        //        catch { /* log if you have a logger; don't fail the request over cleanup */ }
-        //    }
-
-        //    // 5) Persist new relative URL and save product
-        //    var relativeUrl = $"/uploads/products/{fileName}";
-        //    product.ImageUrl = relativeUrl;
-        //    await _productRepo.Update(product, ct);
-
-        //    return relativeUrl;
-        //}
-
-
-        public void UpdateProduct(Product product)
+        public async Task<string?> UploadImageAsync(int productId, IFormFile file, string uploadPath)
         {
+            if (file == null || file.Length == 0) return null;
 
-            var existingProduct = _productRepo.GetProductById(product.PID);
-            if (existingProduct == null)
-                throw new KeyNotFoundException($"Product with ID {product.PID} not found.");
+            if (!Directory.Exists(uploadPath))
+                Directory.CreateDirectory(uploadPath);
 
-            _productRepo.UpdateProduct(product);
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var filePath = Path.Combine(uploadPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return $"/uploads/products/{fileName}";
+        }
+
+        public Product UpdateProduct(int productId, ProductDTO productInput, IFormFile? imageFile)
+        {
+            var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
+            if (product == null) throw new KeyNotFoundException($"Product {productId} not found.");
+
+            _mapper.Map(productInput, product);
+
+            if (imageFile is not null && imageFile.Length > 0)
+            {
+                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
+                var url = UploadImageAsync(productId, imageFile, uploadPath).Result;
+                product.ImageUrl = url;
+            }
+
+            _ctx.SaveChanges();
+            return product;
         }
 
         public Product GetProductByName(string productName)
         {
             var product = _productRepo.GetProductByName(productName);
             if (product == null)
-                throw new KeyNotFoundException($"Product with Nmae {productName} not found.");
+                throw new KeyNotFoundException($"Product with Name {productName} not found.");
             return product;
         }
-        public (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(
-    int pageNumber = 1, int pageSize = 20, string? name = null,
-    decimal? minPrice = null, decimal? maxPrice = null)
+        public (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(int pageNumber = 1, int pageSize = 20, string? name = null, decimal? minPrice = null, decimal? maxPrice = null)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1 || pageSize > 200) pageSize = 20;
