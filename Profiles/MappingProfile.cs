@@ -22,23 +22,26 @@ public class MappingProfile : Profile
         // -----------------
         // Product 
         // -----------------
-        CreateMap<Product, ProductDTO>().ReverseMap();
-    
+        CreateMap<ProductCreateDTO, Product>();
+        CreateMap<ProductUpdateDTO, Product>();
 
         // -----------------
         // User 
         // -----------------
-        CreateMap<User, UserDTO>().ReverseMap();
+        CreateMap<User, LoginResponseDTO>();
 
         // -----------------
         // Order 
         // -----------------
-        CreateMap<Order, OrdersOutputDTO>().ReverseMap();
-        CreateMap<OrderProducts, OrdersOutputDTO>()
-            .ForMember(d => d.ProductName, opt => opt.MapFrom(s => s.product.ProductName))
-            .ForMember(d => d.Quantity, opt => opt.MapFrom(s => s.Quantity))
-            .ForMember(d => d.OrderDate, opt => opt.MapFrom(s => s.Order.OrderDate))
-            .ForMember(d => d.TotalAmount, opt => opt.MapFrom(s => s.Quantity * s.product.Price));
+        CreateMap<Order, OrderSummaryDTO>();
+        CreateMap<OrderProducts, OrderLineDTO>()
+            .ForMember(d => d.ProductName, o => o.MapFrom(s => s.product.ProductName))
+            .ForMember(d => d.UnitPrice, o => o.MapFrom(s => s.product.Price))
+            .ForMember(d => d.Quantity, o => o.MapFrom(s => s.Quantity))
+            .ForMember(d => d.LineTotal, o => o.MapFrom(s => s.Quantity * s.product.Price));
+
+        CreateMap<OrderStatusUpdateDTO, Order>();
+
         // -----------------
         // OrderProduct 
         // -----------------
@@ -47,11 +50,11 @@ public class MappingProfile : Profile
         // -----------------
         // Review 
         // -----------------
-        CreateMap<Review, ReviewDTO>().ReverseMap();
+        CreateMap<Review, ReviewDTO>();
+        CreateMap<ReviewCreateDTO, Review>();
 
         // ── Order → OrderSummaryDTO
         CreateMap<OrderProducts, OrderLineDTO>()
-            .ForMember(d => d.ProductId, m => m.MapFrom(s => s.PID))
             .ForMember(d => d.ProductName, m => m.MapFrom(s => s.product.ProductName))
             .ForMember(d => d.Quantity, m => m.MapFrom(s => s.Quantity))
             .ForMember(d => d.UnitPrice, m => m.MapFrom(s => s.product.Price))
@@ -61,11 +64,10 @@ public class MappingProfile : Profile
         CreateMap<Order, OrderSummaryDTO>()
             .ForMember(d => d.OrderId, m => m.MapFrom(s => s.OID))
             .ForMember(d => d.CustomerName, m => m.MapFrom(s => s.user.UName))
-            .ForMember(d => d.CreatedAt, m => m.MapFrom(s => s.OrderDate))
+            .ForMember(d => d.OrderDate, m => m.MapFrom(s => s.OrderDate))
             .ForMember(d => d.Status, m => m.MapFrom(s => s.Status.ToString()))
             .ForMember(d => d.Lines, m => m.MapFrom(s => s.OrderProducts))
-            .ForMember(d => d.Subtotal, m => m.MapFrom(s => s.OrderProducts.Sum(op => op.Quantity * op.product.Price)))
-            .ForMember(d => d.Total, m => m.MapFrom(s => s.OrderProducts.Sum(op => op.Quantity * op.product.Price)));
+            .ForMember(d => d.TotalAmount, m => m.MapFrom(s => s.OrderProducts.Sum(op => op.Quantity * op.product.Price)));
 
 
         CreateMap<Order, OrdersOutputDTO>()
@@ -75,5 +77,9 @@ public class MappingProfile : Profile
             .ForMember(d => d.Status, opt =>
                 opt.MapFrom(s => Enum.Parse<OrderStatus>(s.Status, true)));
 
+        // User with ignore
+        CreateMap<UserDTO, User>()
+            .ForMember(u => u.Password, o => o.Ignore())
+            .ForMember(u => u.CreatedAt, o => o.Ignore());
     }
 }

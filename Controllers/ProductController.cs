@@ -44,7 +44,7 @@ namespace E_CommerceSystem.Controllers
         // =============================
         // UPDATE/REPLACE PRODUCT IMAGE
         // =============================
-        [HttpPut("UpdateProduct/{productId}")]
+        [HttpPut("UpdateProduct/ {productId}")]
         public IActionResult UpdateProduct(int productId, [FromForm] ProductDTO productInput, IFormFile? imageFile)
         {
             try

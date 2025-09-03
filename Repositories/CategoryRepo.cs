@@ -5,35 +5,35 @@ namespace E_CommerceSystem.Repositories
 {
     public class CategoryRepo : ICategoryRepo
     {
-        private readonly ApplicationDbContext _context;
-        public CategoryRepo(ApplicationDbContext context) => _context = context;
+        private readonly ApplicationDbContext _ctx;
+        public CategoryRepo(ApplicationDbContext ctx) => _ctx = ctx;
 
-        public async Task<IEnumerable<Category>> GetAllAsync() =>
-            await _context.Categories.ToListAsync();
+        public IEnumerable<Category> GetAll() => _ctx.Categories.AsNoTracking().ToList();
 
-        public async Task<Category?> GetByIdAsync(int id) =>
-            await _context.Categories.FindAsync(id);
+        public Category? GetById(int id) =>
+            _ctx.Categories.Include(c => c.Products).FirstOrDefault(c => c.CategoryId == id);
 
-        public async Task AddAsync(Category category)
+        public void Add(Category entity)
         {
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
+            _ctx.Categories.Add(entity);
+            _ctx.SaveChanges();
         }
 
-        public async Task UpdateAsync(Category category)
+        public void Update(Category entity)
         {
-            _context.Categories.Update(category);
-            await _context.SaveChangesAsync();
+            _ctx.Categories.Update(entity);
+            _ctx.SaveChanges();
         }
 
-        public async Task DeleteAsync(int id)
+        public bool Delete(int id)
         {
-            var entity = await _context.Categories.FindAsync(id);
-            if (entity != null)
-            {
-                _context.Categories.Remove(entity);
-                await _context.SaveChangesAsync();
-            }
+            var entity = _ctx.Categories.FirstOrDefault(c => c.CategoryId == id);
+            if (entity == null) return false;
+            _ctx.Categories.Remove(entity);
+            _ctx.SaveChanges();
+            return true;
         }
+
+        public bool Exists(int id) => _ctx.Categories.Any(c => c.CategoryId == id);
     }
 }

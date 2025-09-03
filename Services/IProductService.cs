@@ -6,7 +6,7 @@ namespace E_CommerceSystem.Services
     {
         Product AddProduct(ProductDTO productInput, IFormFile? imageFile);
         Product UpdateProduct(int productId, ProductDTO productInput, IFormFile? imageFile);
-        IEnumerable<Product> GetAllProducts(int pageNumber, int pageSize, string? name = null, decimal? minPrice = null, decimal? maxPrice = null);
+        IEnumerable<Product> GetProducts(int pageNumber, int pageSize, string? name = null, decimal? minPrice = null, decimal? maxPrice = null);
         Product GetProductById(int pid);
         Product GetProductByName(string productName);
 

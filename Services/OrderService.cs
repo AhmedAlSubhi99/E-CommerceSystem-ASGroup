@@ -229,72 +229,38 @@ namespace E_CommerceSystem.Services
             {
                 OrderId = order.OID,
                 CustomerName = order.user.UName,
-                CreatedAt = order.OrderDate,
+                OrderDate = order.OrderDate,
                 Status = order.Status.ToString(),
-                Subtotal = order.OrderProducts.Sum(i => i.product.Price * i.Quantity),
-                Total = order.TotalAmount,
+                TotalAmount = order.TotalAmount,
                 Lines = order.OrderProducts.Select(i => new OrderLineDTO
                 {
-                    ProductId = i.PID,
                     ProductName = i.product.ProductName,
                     Quantity = i.Quantity,
                     UnitPrice = i.product.Price
                 }).ToList()
             };
         }
-        public async Task<(bool ok, string message)> CancelOrderAsync(int orderId, int userId, bool isAdmin)
+        public void CancelOrder(int orderId, int userId)
         {
-            var order = await _orderRepo.GetOrderWithDetailsAsync(orderId);
-            if (order == null) return (false, "Order not found.");
+            var order = _ctx.Orders.Include(o => o.OrderProducts)
+                                       .ThenInclude(op => op.product)
+                                       .FirstOrDefault(o => o.OID == orderId && o.UID == userId);
 
-            // Owner or Admin only
-            var ownerId = order.UID;
-            if (!isAdmin && ownerId != userId)
-                return (false, "You are not allowed to cancel this order.");
-
-            // Allowed statuses to cancel
+            if (order == null) throw new ArgumentException("Order not found");
             if (order.Status == OrderStatus.Cancelled)
-                return (false, "Order is already cancelled.");
+                throw new InvalidOperationException("Order already cancelled");
 
-            if (order.Status == OrderStatus.Shipped || order.Status == OrderStatus.Delivered)
-                return (false, $"Cannot cancel an order in '{order.Status}' status.");
-
-            // if Paid is allowed to cancel, we proceed; otherwise block:
-            if (order.Status == OrderStatus.Paid) return (false, "Paid orders cannot be cancelled.");
-
-            await using var tx = await _ctx.Database.BeginTransactionAsync();
-
-            try
+            order.Status = OrderStatus.Cancelled;
+            // Restore stock
+            foreach (var item in order.OrderProducts)
             {
-                // restore stock for each order line
-                foreach (var line in order.OrderProducts)
-                {
-                    var product = line.product;
-                    if (product == null)
-                    {
-                        // load if not included (safety)
-                        product = await _ctx.Products.FirstOrDefaultAsync(p => p.PID == line.PID);
-                        if (product == null)
-                            return (false, $"Product {line.PID} not found for line restore.");
-                    }
-
-                    product.Stock += line.Quantity;
-                    _ctx.Products.Update(product);
-                }
-
-                order.Status = OrderStatus.Cancelled;
-                _ctx.Orders.Update(order);
-
-                await _ctx.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                return (true, "Order cancelled and stock restored.");
+                item.product.StockQuantity += item.Quantity;
             }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw; // will bubble to controller as 500; you can convert to (false,"...") if preferred
-            }
+
+            order.Status = OrderStatus.Cancelled;
+            order.StatusUpdatedAtUtc = DateTime.UtcNow;
+
+            _ctx.SaveChanges();
         }
         public OrderSummaryDTO GetOrderSummary(int orderId)
         {

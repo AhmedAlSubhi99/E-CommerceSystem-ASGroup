@@ -5,35 +5,36 @@ namespace E_CommerceSystem.Repositories
 {
     public class SupplierRepo : ISupplierRepo
     {
-        private readonly ApplicationDbContext _context;
-        public SupplierRepo(ApplicationDbContext context) => _context = context;
+        private readonly ApplicationDbContext _ctx;
+        public SupplierRepo(ApplicationDbContext ctx) => _ctx = ctx;
 
-        public async Task<IEnumerable<Supplier>> GetAllAsync() =>
-            await _context.Suppliers.ToListAsync();
+        public IEnumerable<Supplier> GetAll() =>
+            _ctx.Suppliers.AsNoTracking().ToList();
 
-        public async Task<Supplier?> GetByIdAsync(int id) =>
-            await _context.Suppliers.FindAsync(id);
+        public Supplier? GetById(int id) =>
+            _ctx.Suppliers.Include(s => s.Products).FirstOrDefault(s => s.SupplierId == id);
 
-        public async Task AddAsync(Supplier supplier)
+        public void Add(Supplier entity)
         {
-            _context.Suppliers.Add(supplier);
-            await _context.SaveChangesAsync();
+            _ctx.Suppliers.Add(entity);
+            _ctx.SaveChanges();
         }
 
-        public async Task UpdateAsync(Supplier supplier)
+        public void Update(Supplier entity)
         {
-            _context.Suppliers.Update(supplier);
-            await _context.SaveChangesAsync();
+            _ctx.Suppliers.Update(entity);
+            _ctx.SaveChanges();
         }
 
-        public async Task DeleteAsync(int id)
+        public bool Delete(int id)
         {
-            var entity = await _context.Suppliers.FindAsync(id);
-            if (entity != null)
-            {
-                _context.Suppliers.Remove(entity);
-                await _context.SaveChangesAsync();
-            }
+            var sup = _ctx.Suppliers.FirstOrDefault(s => s.SupplierId == id);
+            if (sup == null) return false;
+            _ctx.Suppliers.Remove(sup);
+            _ctx.SaveChanges();
+            return true;
         }
+
+        public bool Exists(int id) => _ctx.Suppliers.Any(s => s.SupplierId == id);
     }
 }

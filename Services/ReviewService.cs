@@ -140,7 +140,8 @@ namespace E_CommerceSystem.Services
             // If OverallRating is decimal in your Product model, convert safely
             product.OverallRating = Convert.ToDecimal(averageRating);
 
-            _productService.UpdateProduct(product);
+            var dto = _mapper.Map<ProductDTO>(product);
+            _productService.UpdateProduct(product.PID, dto, null);
         }
     }
 }

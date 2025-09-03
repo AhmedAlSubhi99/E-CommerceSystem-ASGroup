@@ -1,23 +1,25 @@
 ﻿namespace E_CommerceSystem.Models
 {
+    public class OrderLineDTO
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal LineTotal { get; set; }
+    }
+
     public class OrderSummaryDTO
     {
         public int OrderId { get; set; }
-        public int UserId { get; set; }
-        public string? CustomerName { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public string? Status { get; set; } = "Pending";
-        public List<OrderLineDTO> Lines { get; set; } = new();
-        public decimal Subtotal { get; set; }
-        public decimal Total { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public DateTime OrderDate { get; set; }
+        public List<OrderLineDTO> Lines { get; set; } = new List<OrderLineDTO>();
+        public decimal TotalAmount { get; set; }
+        public string Status { get; set; } = string.Empty;
     }
 
-    public class OrderLineDTO
+    public class OrderStatusUpdateDTO
     {
-        public int ProductId { get; set; }
-        public string ProductName { get; set; } = "";
-        public int Quantity { get; set; }
-        public decimal UnitPrice { get; set; }
-        public decimal LineTotal => Quantity * UnitPrice;
+        public string Status { get; set; } = string.Empty; // Pending, Paid, Shipped, Delivered, Cancelled
     }
 }
