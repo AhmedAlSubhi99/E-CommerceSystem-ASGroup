@@ -1,5 +1,4 @@
-﻿using E_CommerceSystem.Models;
-using E_CommerceSystem.Services;
+﻿using E_CommerceSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,60 +6,74 @@ namespace E_CommerceSystem.Controllers
 {
     [Authorize(Roles = "admin,manager")]
     [ApiController]
-    [Route("api/admin/reports")]
-    public class AdminReportsController : ControllerBase
+    [Route("api/[controller]")]
+    public class ReportController : ControllerBase
     {
-        private readonly IReportsService _reports;
-        private readonly ILogger<AdminReportsController> _logger;
+        private readonly IReportsService _reportsService;
+        private readonly ILogger<ReportController> _logger;
 
-        public AdminReportsController(IReportsService reports, ILogger<AdminReportsController> logger)
+        public ReportController(IReportsService reportsService, ILogger<ReportController> logger)
         {
-            _reports = reports;
+            _reportsService = reportsService;
             _logger = logger;
         }
 
-        // 1) Best-selling products
-        [HttpGet("best-selling")]
-        public async Task<ActionResult<IReadOnlyList<BestSellingProductDTO>>> GetBestSelling(
-            [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int take = 10)
+        [HttpGet("best-selling-products")]
+        public async Task<IActionResult> GetBestSellingProducts(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] int take = 10)
         {
-            _logger.LogInformation("Admin requested best-selling products report (from={From}, to={To}, take={Take}).", from, to, take);
-            return Ok(await _reports.GetBestSellingProductsAsync(from, to, take));
+            _logger.LogInformation("User {User} requested Best-Selling Products report.", User.Identity?.Name);
+            var result = await _reportsService.GetBestSellingProductsAsync(from, to, take);
+            return Ok(result);
         }
 
-        // 2) Revenue by day
-        [HttpGet("revenue/daily")]
-        public async Task<ActionResult<IReadOnlyList<RevenueByDayDTO>>> GetRevenueDaily(
-            [FromQuery] DateTime from, [FromQuery] DateTime to)
+        [HttpGet("revenue-by-day")]
+        public async Task<IActionResult> GetRevenueByDay(
+            [FromQuery] DateTime from,
+            [FromQuery] DateTime to)
         {
-            _logger.LogInformation("Admin requested daily revenue report (from={From}, to={To}).", from, to);
-            return Ok(await _reports.GetRevenueByDayAsync(from, to));
+            _logger.LogInformation("User {User} requested Revenue by Day report from {From} to {To}.",
+                                   User.Identity?.Name, from, to);
+
+            var result = await _reportsService.GetRevenueByDayAsync(from, to);
+            return Ok(result);
         }
 
-        // 3) Revenue by month
-        [HttpGet("revenue/monthly")]
-        public async Task<ActionResult<IReadOnlyList<RevenueByMonthDTO>>> GetRevenueMonthly([FromQuery] int year)
+        [HttpGet("revenue-by-month")]
+        public async Task<IActionResult> GetRevenueByMonth([FromQuery] int year)
         {
-            _logger.LogInformation("Admin requested monthly revenue report for year {Year}.", year);
-            return Ok(await _reports.GetRevenueByMonthAsync(year));
+            _logger.LogInformation("User {User} requested Revenue by Month report for year {Year}.",
+                                   User.Identity?.Name, year);
+
+            var result = await _reportsService.GetRevenueByMonthAsync(year);
+            return Ok(result);
         }
 
-        // 4) Top-rated products
-        [HttpGet("top-rated")]
-        public async Task<ActionResult<IReadOnlyList<TopRatedProductDTO>>> GetTopRated(
-            [FromQuery] int minReviews = 3, [FromQuery] int take = 10)
+        [HttpGet("top-rated-products")]
+        public async Task<IActionResult> GetTopRatedProducts(
+            [FromQuery] int minReviews = 3,
+            [FromQuery] int take = 10)
         {
-            _logger.LogInformation("Admin requested top-rated products report (minReviews={MinReviews}, take={Take}).", minReviews, take);
-            return Ok(await _reports.GetTopRatedProductsAsync(minReviews, take));
+            _logger.LogInformation("User {User} requested Top-Rated Products report (MinReviews={MinReviews}, Take={Take}).",
+                                   User.Identity?.Name, minReviews, take);
+
+            var result = await _reportsService.GetTopRatedProductsAsync(minReviews, take);
+            return Ok(result);
         }
 
-        // 5) Most active customers
-        [HttpGet("most-active")]
-        public async Task<ActionResult<IReadOnlyList<MostActiveCustomerDTO>>> GetMostActive(
-            [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int take = 10)
+        [HttpGet("most-active-customers")]
+        public async Task<IActionResult> GetMostActiveCustomers(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] int take = 10)
         {
-            _logger.LogInformation("Admin requested most active customers report (from={From}, to={To}, take={Take}).", from, to, take);
-            return Ok(await _reports.GetMostActiveCustomersAsync(from, to, take));
+            _logger.LogInformation("User {User} requested Most Active Customers report from {From} to {To} (Top {Take}).",
+                                   User.Identity?.Name, from, to, take);
+
+            var result = await _reportsService.GetMostActiveCustomersAsync(from, to, take);
+            return Ok(result);
         }
     }
 }
