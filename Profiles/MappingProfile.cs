@@ -10,20 +10,26 @@ public class MappingProfile : Profile
         // -----------------
         CreateMap<Category, CategoryDTO>().ReverseMap();
         CreateMap<CategoryCreateDTO, Category>();
-        CreateMap<CategoryUpdateDto, Category>();
+
+        CreateMap<CategoryUpdateDto, Category>()
+            .ForMember(dest => dest.CategoryId, opt => opt.Ignore()); 
 
         // -----------------
         // Supplier 
         // -----------------
         CreateMap<Supplier, SupplierDTO>().ReverseMap();
         CreateMap<SupplierCreateDto, Supplier>();
-        CreateMap<SupplierUpdateDto, Supplier>();
+
+        CreateMap<SupplierUpdateDto, Supplier>()
+            .ForMember(dest => dest.SupplierId, opt => opt.Ignore()); 
 
         // -----------------
         // Product 
         // -----------------
         CreateMap<ProductCreateDTO, Product>();
-        CreateMap<ProductUpdateDTO, Product>();
+
+        CreateMap<ProductUpdateDTO, Product>()
+            .ForMember(dest => dest.PID, opt => opt.Ignore());
 
         // -----------------
         // User 
@@ -53,26 +59,28 @@ public class MappingProfile : Profile
         CreateMap<Order, OrdersOutputDTO>()
             .ForMember(d => d.Status, opt => opt.MapFrom(s => s.Status.ToString()));
 
-        // Choose one DTO for status update
         CreateMap<UpdateOrderStatusDTO, Order>()
             .ForMember(d => d.Status, opt =>
-                opt.MapFrom(s => Enum.Parse<OrderStatus>(s.Status, true)));
+                opt.MapFrom(s => Enum.Parse<OrderStatus>(s.Status, true)))
+            .ForMember(d => d.OID, opt => opt.Ignore()); 
 
         // -----------------
         // Review 
         // -----------------
         CreateMap<Review, ReviewDTO>();
-        CreateMap<ReviewCreateDTO, Review>();
+
+        CreateMap<ReviewCreateDTO, Review>()
+            .ForMember(d => d.ReviewID, opt => opt.Ignore()); 
 
         // -----------------
         // OrderItem 
         // -----------------
         CreateMap<OrderProducts, OrderItemDTO>().ReverseMap();
 
-        //  User ↔ UserDTO
+        // User ↔ UserDTO
         CreateMap<User, UserDTO>().ReverseMap();
 
-        //  User → LoginResponseDTO
+        // User → LoginResponseDTO
         CreateMap<User, LoginResponseDTO>();
     }
 }
