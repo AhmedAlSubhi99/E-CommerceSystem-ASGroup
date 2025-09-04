@@ -53,17 +53,31 @@ namespace E_CommerceSystem.Services
 
         private async Task<string> SaveImageAsync(IFormFile file)
         {
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var path = Path.Combine(_imageFolder, fileName);
-
-            using (var stream = new FileStream(path, FileMode.Create))
+            try
             {
-                await file.CopyToAsync(stream);
-            }
+                if (_env.WebRootPath == null)
+                    throw new InvalidOperationException("WebRootPath is not configured. Did you enable UseStaticFiles()?");
 
-            // ✅ Consistent path for serving via wwwroot
-            return $"/images/products/{fileName}";
+                if (!Directory.Exists(_imageFolder))
+                    Directory.CreateDirectory(_imageFolder);
+
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+                var path = Path.Combine(_imageFolder, fileName);
+
+                using (var stream = new FileStream(path, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                return $"/images/products/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while saving image {FileName}", file.FileName);
+                throw new InvalidOperationException("Image upload failed, see logs for details.");
+            }
         }
+
 
         private void DeleteImage(string? imageUrl)
         {

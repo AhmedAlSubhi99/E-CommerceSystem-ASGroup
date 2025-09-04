@@ -1,5 +1,6 @@
 ﻿using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Reflection;
 
 namespace E_CommerceSystem
 {
@@ -7,18 +8,20 @@ namespace E_CommerceSystem
     {
         public void Apply(OpenApiOperation operation, OperationFilterContext context)
         {
-            // Detect endpoints with ProductDTO + IFormFile
+            // Check if any parameter is ProductCreateDTO or ProductUpdateDTO (with file)
             var hasFileUpload = context.MethodInfo
                 .GetParameters()
-                .Any(p => p.ParameterType == typeof(IFormFile)
-                       || p.ParameterType.Name.Contains("ProductDTO"));
+                .Any(p => p.ParameterType == typeof(E_CommerceSystem.Models.DTO.ProductCreateDTO) ||
+                          p.ParameterType == typeof(E_CommerceSystem.Models.DTO.ProductUpdateDTO) ||
+                          p.ParameterType == typeof(IFormFile));
 
-            if (hasFileUpload)
+            if (!hasFileUpload) return;
+
+            // Clear default schema and build multipart/form-data schema
+            operation.Parameters.Clear();
+            operation.RequestBody = new OpenApiRequestBody
             {
-                operation.Parameters.Clear();
-                operation.RequestBody = new OpenApiRequestBody
-                {
-                    Content =
+                Content =
                 {
                     ["multipart/form-data"] = new OpenApiMediaType
                     {
@@ -27,7 +30,6 @@ namespace E_CommerceSystem
                             Type = "object",
                             Properties = new Dictionary<string, OpenApiSchema>
                             {
-                                // ✅ ProductDTO fields
                                 ["productName"] = new OpenApiSchema
                                 {
                                     Type = "string",
@@ -62,12 +64,11 @@ namespace E_CommerceSystem
                                     Format = "int32",
                                     Description = "Supplier ID"
                                 },
-                                // ✅ Image upload field
                                 ["imageFile"] = new OpenApiSchema
                                 {
                                     Type = "string",
                                     Format = "binary",
-                                    Description = "Product image file"
+                                    Description = "Product image file (JPG/PNG)"
                                 }
                             },
                             Required = new HashSet<string>
@@ -77,8 +78,7 @@ namespace E_CommerceSystem
                         }
                     }
                 }
-                };
-            }
+            };
         }
     }
 }

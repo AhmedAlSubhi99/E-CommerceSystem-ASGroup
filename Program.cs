@@ -34,7 +34,7 @@ namespace E_CommerceSystem
             builder.Services.AddScoped<IProductRepo, ProductRepo>();
             builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.Configure<FormOptions>(opt => {
-                opt.MultipartBodyLengthLimit = 50L * 1024 * 1024; // 5 MB
+                opt.MultipartBodyLengthLimit = 50L * 1024 * 1024; // 50 MB
             });
 
             builder.Services.AddScoped<IOrderProductsRepo, OrderProductsRepo>();
@@ -126,7 +126,7 @@ namespace E_CommerceSystem
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "E-Commerce API", Version = "v1" });
 
-                // JWT Security Setup
+                // ================= JWT Security Setup =================
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Description = "JWT Authorization header using the Bearer scheme (Example: 'Bearer <token>')",
@@ -151,9 +151,11 @@ namespace E_CommerceSystem
         }
     });
 
-                // Tell Swagger to support file uploads in form-data
+                // ================= File Upload Support =================
+                // This ensures that ImageFile shows as a file picker in Swagger UI
                 c.OperationFilter<FileUploadOperationFilter>();
             });
+
 
 
             var app = builder.Build();

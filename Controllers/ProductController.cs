@@ -33,12 +33,30 @@ namespace E_CommerceSystem.Controllers
         [HttpPost("AddProduct")]
         public async Task<IActionResult> AddProduct([FromForm] ProductCreateDTO dto)
         {
-            _logger.LogInformation("AddProduct requested by {User}", User.Identity?.Name);
+            try
+            {
+                if (dto == null)
+                {
+                    _logger.LogWarning("AddProduct failed: DTO was null");
+                    return BadRequest("Product data is required.");
+                }
 
-            var product = _mapper.Map<Product>(dto);
-            var created = await _productService.AddProductAsync(product, dto.ImageFile);
+                if (dto.ImageFile != null && dto.ImageFile.Length == 0)
+                    return BadRequest("Uploaded image is empty.");
 
-            return Ok(new { message = "Product added successfully", product = created });
+                var product = _mapper.Map<Product>(dto);
+                var created = await _productService.AddProductAsync(product, dto.ImageFile);
+
+                _logger.LogInformation("Product {ProductName} created with ID {ProductId} by {User}",
+                    product.ProductName, product.PID, User.Identity?.Name);
+
+                return CreatedAtAction(nameof(GetProductById), new { id = product.PID }, created);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while adding product {ProductName}", dto?.ProductName);
+                return StatusCode(500, new { message = "An error occurred while adding the product.", detail = ex.Message });
+            }
         }
 
         // -------------------------------
@@ -48,11 +66,23 @@ namespace E_CommerceSystem.Controllers
         [HttpPut("UpdateProduct/{id}")]
         public async Task<IActionResult> UpdateProduct(int id, [FromForm] ProductUpdateDTO dto)
         {
-            _logger.LogInformation("UpdateProduct requested for {ProductId} by {User}", id, User.Identity?.Name);
+            try
+            {
+                var updated = await _productService.UpdateProductAsync(id, dto, dto.ImageFile);
 
-            var updated = await _productService.UpdateProductAsync(id, dto, dto.ImageFile);
+                _logger.LogInformation("Product {ProductId} updated successfully by {User}", id, User.Identity?.Name);
 
-            return Ok(new { message = "Product updated successfully", product = updated });
+                return Ok(new { message = "Product updated successfully", product = updated });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = $"Product with ID {id} not found." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while updating product {ProductId}", id);
+                return StatusCode(500, new { message = "An error occurred while updating the product.", detail = ex.Message });
+            }
         }
 
         // -------------------------------
@@ -81,10 +111,19 @@ namespace E_CommerceSystem.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProductById(int id)
         {
-            var product = await _productService.GetProductByIdAsync(id);
-            if (product == null) return NotFound();
+            try
+            {
+                var product = await _productService.GetProductByIdAsync(id);
+                if (product == null)
+                    return NotFound(new { message = $"Product with ID {id} not found." });
 
-            return Ok(_mapper.Map<ProductDTO>(product));
+                return Ok(_mapper.Map<ProductDTO>(product));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching Product {ProductId}", id);
+                return StatusCode(500, new { message = "An error occurred while fetching the product.", detail = ex.Message });
+            }
         }
 
         // -------------------------------
@@ -94,13 +133,23 @@ namespace E_CommerceSystem.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            _logger.LogInformation("DeleteProduct requested for {ProductId} by {User}", id, User.Identity?.Name);
+            try
+            {
+                var product = await _productService.GetProductByIdAsync(id);
+                if (product == null)
+                    return NotFound(new { message = $"Product with ID {id} not found." });
 
-            var product = await _productService.GetProductByIdAsync(id);
-            if (product == null) return NotFound();
+                await _productService.DeleteProductAsync(id);
 
-            await _productService.DeleteProductAsync(id);
-            return Ok(new { message = "Product deleted successfully" });
+                _logger.LogInformation("Product {ProductId} deleted by {User}", id, User.Identity?.Name);
+
+                return Ok(new { message = "Product deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while deleting Product {ProductId}", id);
+                return StatusCode(500, new { message = "An error occurred while deleting the product.", detail = ex.Message });
+            }
         }
     }
 }
