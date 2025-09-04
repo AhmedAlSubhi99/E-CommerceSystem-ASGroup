@@ -1,4 +1,5 @@
 ﻿using E_CommerceSystem.Models;
+using E_CommerceSystem.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Repositories

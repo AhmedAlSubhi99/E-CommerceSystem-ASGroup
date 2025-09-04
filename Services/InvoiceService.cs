@@ -1,7 +1,8 @@
 ﻿using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using E_CommerceSystem.Models;
+using E_CommerceSystem.Models.DTO;
+using E_CommerceSystem.Services.Interfaces;
 
 namespace E_CommerceSystem.Services
 {

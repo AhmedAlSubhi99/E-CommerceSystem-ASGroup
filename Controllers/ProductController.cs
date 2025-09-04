@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
-using E_CommerceSystem.Services;
+using E_CommerceSystem.Models.DTO;
+using E_CommerceSystem.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

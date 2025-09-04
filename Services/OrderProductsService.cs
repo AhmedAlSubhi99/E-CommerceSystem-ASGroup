@@ -1,5 +1,6 @@
 ﻿using E_CommerceSystem.Models;
-using E_CommerceSystem.Repositories;
+using E_CommerceSystem.Repositories.Interfaces;
+using E_CommerceSystem.Services.Interfaces;
 
 namespace E_CommerceSystem.Services
 {

@@ -1,4 +1,4 @@
-﻿using E_CommerceSystem.Services;
+﻿using E_CommerceSystem.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

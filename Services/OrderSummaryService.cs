@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
-using E_CommerceSystem.Models;
+using E_CommerceSystem.Models.DTO;
+using E_CommerceSystem.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace E_CommerceSystem.Services

@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
+using E_CommerceSystem.Models.DTO;
 
 public class MappingProfile : Profile
 {

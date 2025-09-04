@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using E_CommerceSystem.Models;
-using E_CommerceSystem.Repositories;
+using E_CommerceSystem.Models.DTO;
+using E_CommerceSystem.Repositories.Interfaces;
+using E_CommerceSystem.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
