@@ -14,6 +14,7 @@ namespace E_CommerceSystem.Services
         private readonly IMapper _mapper;
 
         private const long MaxImageSize = 2 * 1024 * 1024; // 2 MB
+        private readonly string _imageFolder;
 
         public ProductService(
             IProductRepo productRepo,
@@ -27,6 +28,10 @@ namespace E_CommerceSystem.Services
             _logger = logger;
             _ctx = ctx;
             _env = env;
+
+            _imageFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images", "products");
+            if (!Directory.Exists(_imageFolder))
+                Directory.CreateDirectory(_imageFolder);
         }
 
         // ==================== IMAGE HELPERS ====================
@@ -36,25 +41,25 @@ namespace E_CommerceSystem.Services
             if (file.Length > MaxImageSize)
                 throw new ArgumentException("File too large. Maximum allowed size is 2 MB.");
 
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext != ".jpg" && ext != ".jpeg" && ext != ".png")
+                throw new ArgumentException("Only JPG and PNG images are allowed.");
+
             if (!file.ContentType.StartsWith("image/"))
                 throw new ArgumentException("Invalid file type. Only image files are allowed.");
         }
 
-        private string SaveImage(IFormFile file)
+        private async Task<string> SaveImageAsync(IFormFile file)
         {
-            var folder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
-            if (!Directory.Exists(folder))
-                Directory.CreateDirectory(folder);
-
             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var path = Path.Combine(folder, fileName);
+            var path = Path.Combine(_imageFolder, fileName);
 
             using (var stream = new FileStream(path, FileMode.Create))
             {
-                file.CopyTo(stream);
+                await file.CopyToAsync(stream);
             }
 
-            return "/images/" + fileName;
+            return $"/images/products/{fileName}";
         }
 
         private void DeleteImage(string? imageUrl)
@@ -78,7 +83,7 @@ namespace E_CommerceSystem.Services
 
         // ==================== CRUD OPERATIONS ====================
 
-        public IEnumerable<Product> GetProducts(int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice)
+        public async Task<IEnumerable<Product>> GetProductsAsync(int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice)
         {
             page = page < 1 ? 1 : page;
             pageSize = pageSize < 1 ? 10 : pageSize;
@@ -95,37 +100,39 @@ namespace E_CommerceSystem.Services
             if (maxPrice.HasValue)
                 query = query.Where(p => p.Price <= maxPrice.Value);
 
-            return query
+            return await query
                 .OrderBy(p => p.PID)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .ToList();
+                .ToListAsync();
         }
 
-        public Product GetProductById(int pid)
+        public async Task<Product> GetProductByIdAsync(int pid)
         {
-            var product = _productRepo.GetProductById(pid);
+            var product = await _productRepo.GetProductByIdAsync(pid);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {pid} not found.");
             return product;
         }
 
-        public void AddProduct(Product product, IFormFile? imageFile)
+        public async Task<ProductDTO> AddProductAsync(Product product, IFormFile? imageFile)
         {
             try
             {
                 if (imageFile != null)
                 {
                     ValidateImage(imageFile);
-                    product.ImageUrl = SaveImage(imageFile);
+                    product.ImageUrl = await SaveImageAsync(imageFile);
                     _logger.LogInformation("Image uploaded for product {ProductName}", product.ProductName);
                 }
 
-                _ctx.Products.Add(product);
-                _ctx.SaveChanges();
+                await _productRepo.AddProductAsync(product);
+                await _productRepo.SaveChangesAsync();
 
                 _logger.LogInformation("Product {ProductName} added successfully with ID {ProductId}",
                                        product.ProductName, product.PID);
+
+                return _mapper.Map<ProductDTO>(product);
             }
             catch (Exception ex)
             {
@@ -134,29 +141,29 @@ namespace E_CommerceSystem.Services
             }
         }
 
-        public void UpdateProduct(int productId, ProductUpdateDTO dto, IFormFile? imageFile)
+        public async Task<ProductDTO> UpdateProductAsync(int productId, ProductUpdateDTO dto, IFormFile? imageFile)
         {
             try
             {
-                var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
+                var product = await _ctx.Products.FirstOrDefaultAsync(p => p.PID == productId);
                 if (product == null)
                     throw new ArgumentException("Product not found");
 
-                _mapper.Map(dto, product);
+                _mapper.Map(dto, product); // Make sure AutoMapper ignores PID
 
                 if (imageFile != null)
                 {
                     ValidateImage(imageFile);
-
-                    // delete old image if exists
                     DeleteImage(product.ImageUrl);
 
-                    product.ImageUrl = SaveImage(imageFile);
+                    product.ImageUrl = await SaveImageAsync(imageFile);
                     _logger.LogInformation("Image updated for product {ProductName}", product.ProductName);
                 }
 
-                _ctx.SaveChanges();
+                await _ctx.SaveChangesAsync();
                 _logger.LogInformation("Product {ProductId} updated successfully.", productId);
+
+                return _mapper.Map<ProductDTO>(product);
             }
             catch (Exception ex)
             {
@@ -165,18 +172,18 @@ namespace E_CommerceSystem.Services
             }
         }
 
-        public void DeleteProduct(int productId)
+        public async Task DeleteProductAsync(int productId)
         {
             try
             {
-                var product = _ctx.Products.FirstOrDefault(p => p.PID == productId);
+                var product = await _ctx.Products.FirstOrDefaultAsync(p => p.PID == productId);
                 if (product == null)
                     throw new KeyNotFoundException($"Product {productId} not found.");
 
                 DeleteImage(product.ImageUrl);
 
                 _ctx.Products.Remove(product);
-                _ctx.SaveChanges();
+                await _ctx.SaveChangesAsync();
 
                 _logger.LogInformation("Product {ProductId} deleted successfully.", productId);
             }
@@ -222,21 +229,21 @@ namespace E_CommerceSystem.Services
 
         // ==================== EXTRA QUERIES ====================
 
-        public Product GetProductByName(string productName)
+        public async Task<Product> GetProductByNameAsync(string productName)
         {
-            var product = _productRepo.GetProductByName(productName);
+            var product = await _productRepo.GetProductByNameAsync(productName);
             if (product == null)
                 throw new KeyNotFoundException($"Product with Name {productName} not found.");
             return product;
         }
 
-        public (IEnumerable<ProductDTO> items, int totalCount) GetAllPaged(
+        public async Task<(IEnumerable<ProductDTO> items, int totalCount)> GetAllPagedAsync(
             int pageNumber = 1, int pageSize = 20, string? name = null, decimal? minPrice = null, decimal? maxPrice = null)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1 || pageSize > 200) pageSize = 20;
 
-            var q = _productRepo.GetAllProducts().AsQueryable();
+            var q = (await _productRepo.GetAllProductsAsync()).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(name))
                 q = q.Where(p => p.ProductName.Contains(name));
@@ -258,18 +265,18 @@ namespace E_CommerceSystem.Services
             return (items, total);
         }
 
-        public void IncrementStock(int productId, int quantity)
+        public async Task IncrementStockAsync(int productId, int quantity)
         {
             try
             {
-                var product = _productRepo.GetProductById(productId);
+                var product = await _productRepo.GetProductByIdAsync(productId);
                 if (product == null)
                     throw new KeyNotFoundException($"Product {productId} not found.");
 
                 product.StockQuantity += quantity;
 
                 _productRepo.Update(product);
-                _productRepo.SaveChanges();
+                await _productRepo.SaveChangesAsync();
 
                 _logger.LogInformation("Stock incremented by {Quantity} for Product {ProductId}. New stock: {StockQuantity}",
                                        quantity, productId, product.StockQuantity);

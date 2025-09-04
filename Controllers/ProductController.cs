@@ -30,14 +30,14 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [Authorize(Roles = "Admin,Manager")]
         [HttpPost("AddProduct")]
-        public IActionResult AddProduct([FromForm] ProductCreateDTO dto)
+        public async Task<IActionResult> AddProduct([FromForm] ProductCreateDTO dto)
         {
             _logger.LogInformation("AddProduct requested by {User}", User.Identity?.Name);
 
             var product = _mapper.Map<Product>(dto);
-            _productService.AddProduct(product, dto.ImageFile);
+            var created = await _productService.AddProductAsync(product, dto.ImageFile);
 
-            return Ok(new { message = "Product added successfully", product = _mapper.Map<ProductDTO>(product) });
+            return Ok(new { message = "Product added successfully", product = created });
         }
 
         // -------------------------------
@@ -45,14 +45,13 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [Authorize(Roles = "Admin,Manager")]
         [HttpPut("UpdateProduct/{id}")]
-        public IActionResult UpdateProduct(int id, [FromForm] ProductUpdateDTO dto)
+        public async Task<IActionResult> UpdateProduct(int id, [FromForm] ProductUpdateDTO dto)
         {
             _logger.LogInformation("UpdateProduct requested for {ProductId} by {User}", id, User.Identity?.Name);
 
-            _productService.UpdateProduct(id, dto, dto.ImageFile);
-            var updated = _productService.GetProductById(id);
+            var updated = await _productService.UpdateProductAsync(id, dto, dto.ImageFile);
 
-            return Ok(new { message = "Product updated successfully", product = _mapper.Map<ProductDTO>(updated) });
+            return Ok(new { message = "Product updated successfully", product = updated });
         }
 
         // -------------------------------
@@ -60,7 +59,7 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [AllowAnonymous]
         [HttpGet("GetProducts")]
-        public IActionResult GetProducts(
+        public async Task<IActionResult> GetProducts(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? name = null,
@@ -70,7 +69,7 @@ namespace E_CommerceSystem.Controllers
             if (minPrice.HasValue && maxPrice.HasValue && minPrice > maxPrice)
                 return BadRequest("minPrice cannot be greater than maxPrice.");
 
-            var products = _productService.GetProducts(page, pageSize, name, minPrice, maxPrice);
+            var products = await _productService.GetProductsAsync(page, pageSize, name, minPrice, maxPrice);
             return Ok(_mapper.Map<IEnumerable<ProductDTO>>(products));
         }
 
@@ -79,9 +78,9 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [AllowAnonymous]
         [HttpGet("{id}")]
-        public IActionResult GetProductById(int id)
+        public async Task<IActionResult> GetProductById(int id)
         {
-            var product = _productService.GetProductById(id);
+            var product = await _productService.GetProductByIdAsync(id);
             if (product == null) return NotFound();
 
             return Ok(_mapper.Map<ProductDTO>(product));
@@ -92,14 +91,14 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
-        public IActionResult DeleteProduct(int id)
+        public async Task<IActionResult> DeleteProduct(int id)
         {
             _logger.LogInformation("DeleteProduct requested for {ProductId} by {User}", id, User.Identity?.Name);
 
-            var product = _productService.GetProductById(id);
+            var product = await _productService.GetProductByIdAsync(id);
             if (product == null) return NotFound();
 
-            _productService.DeleteProduct(id);
+            await _productService.DeleteProductAsync(id);
             return Ok(new { message = "Product deleted successfully" });
         }
     }

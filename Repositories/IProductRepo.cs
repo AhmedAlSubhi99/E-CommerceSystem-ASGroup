@@ -4,12 +4,12 @@ namespace E_CommerceSystem.Repositories
 {
     public interface IProductRepo
     {
-        void AddProduct(Product product);
-        IEnumerable<Product> GetAllProducts();
-        Product GetProductById(int pid);
-        void UpdateProduct(Product product);
-        Product GetProductByName(string productName);
+        Task AddProductAsync(Product product);
+        Task<IEnumerable<Product>> GetAllProductsAsync();
+        Task<Product?> GetProductByIdAsync(int pid);
+        Task<Product?> GetProductByNameAsync(string productName);
+
         void Update(Product product);
-        int SaveChanges();
+        Task<int> SaveChangesAsync();
     }
 }
