@@ -64,6 +64,15 @@ namespace E_CommerceSystem
 
             builder.Services.AddScoped<IReportsService, ReportsService>();
 
+            // Access HttpContext in services
+            builder.Services.AddHttpContextAccessor();
+
+            // Cookie writer for JWT cookie
+            builder.Services.AddScoped<ICookieTokenWriter, CookieTokenWriter>();
+
+            // Auth service
+            builder.Services.AddScoped<IAuthService, AuthService>();
+
             // Add JWT Authentication
             var jwtSettings = builder.Configuration.GetSection("Jwt");
 
