@@ -13,13 +13,13 @@ namespace E_CommerceSystem.Repositories
         Task<User?> GetByIdAsync(int id);
         Task<User?> GetByEmailAsync(string email);
 
-        // ==================== AUTH ====================
-        Task<User?> GetUserAsync(string email, string password);
-
         // ==================== REFRESH TOKENS ====================
         Task AddRefreshTokenAsync(RefreshToken token);
         Task<RefreshToken?> GetRefreshTokenAsync(string token);
         Task UpdateRefreshTokenAsync(RefreshToken token);
         Task RevokeRefreshTokenAsync(string token);
+
+        // Save changes
+        Task<int> SaveChangesAsync();
     }
 }

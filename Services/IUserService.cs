@@ -4,19 +4,22 @@ namespace E_CommerceSystem.Services
 {
     public interface IUserService
     {
-        void AddUser(User user);
-        User? ValidateUser(string email, string password);
+        // ==================== AUTH ====================
+        Task<UserDTO> RegisterAsync(UserRegisterDTO dto);
+        Task<(string AccessToken, RefreshToken RefreshToken)?> LoginAsync(UserLoginDTO dto);
 
-        void DeleteUser(int uid);
-        IEnumerable<User> GetAllUsers();
-        User GetUSer(string email, string password);
-        User GetUserById(int uid);
-        void UpdateUser(User user);
-        RefreshToken? ValidateRefreshToken(string token);
-        RefreshToken GenerateRefreshToken(int uid);
-        void SaveRefreshToken(int userId, RefreshToken token);
-        RefreshToken? GetRefreshToken(string token);
-        void RevokeRefreshToken(string token);
-        User? GetUserByEmail(string email);
+        // ==================== USERS ====================
+        Task<UserDTO?> GetUserByIdAsync(int uid);
+        Task<IEnumerable<UserDTO>> GetAllUsersAsync();
+        Task UpdateUserAsync(UserDTO dto);
+        Task DeleteUserAsync(int uid);
+        Task<UserDTO?> GetUserByEmailAsync(string email);
+
+        // ==================== REFRESH TOKENS ====================
+        Task<RefreshToken> GenerateRefreshTokenAsync(int userId);
+        Task<RefreshToken?> ValidateRefreshTokenAsync(string token);
+        Task SaveRefreshTokenAsync(int userId, RefreshToken token);
+        Task<RefreshToken?> GetRefreshTokenAsync(string token);
+        Task RevokeRefreshTokenAsync(string token);
     }
 }

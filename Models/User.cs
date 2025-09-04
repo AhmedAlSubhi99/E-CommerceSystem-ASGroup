@@ -11,32 +11,31 @@ namespace E_CommerceSystem.Models
         [Required]
         public string UName { get; set; } = string.Empty;
 
+        [Required]
         [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-        ErrorMessage = "Invalid email format.(e.g 'example@gmail.com')")]
+            ErrorMessage = "Invalid email format (e.g. example@gmail.com).")]
         public string Email { get; set; } = string.Empty;
 
         [JsonIgnore]
         [Required]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-        ErrorMessage = "Password must be at least 8 characters long, contain at least one uppercase letter," +
-            " one lowercase letter, one digit, and one special character.")]
-        public string Password { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty; // hashed password only
 
         [Required]
-        public string Phone {  get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
 
         [Required]
         public string Role { get; set; } = "Customer";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // Navigation properties
         [JsonIgnore]
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
 
         [JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 
+        [JsonIgnore]
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
-
     }
 }

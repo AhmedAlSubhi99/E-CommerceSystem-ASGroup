@@ -1,8 +1,9 @@
-﻿using E_CommerceSystem.Models;
+﻿using AutoMapper;
+using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 namespace E_CommerceSystem.Services
@@ -11,189 +12,50 @@ namespace E_CommerceSystem.Services
     {
         private readonly IUserRepo _userRepo;
         private readonly IConfiguration _configuration;
-        private readonly ApplicationDbContext _ctx;
+        private readonly IMapper _mapper;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IUserRepo userRepo, IConfiguration configuration, ApplicationDbContext ctx, ILogger<UserService> logger)
+        public UserService(IUserRepo userRepo, IConfiguration configuration, IMapper mapper, ILogger<UserService> logger)
         {
             _userRepo = userRepo;
             _configuration = configuration;
-            _ctx = ctx;
+            _mapper = mapper;
             _logger = logger;
         }
 
-        public void AddUser(User user)
+        // ==================== AUTH ====================
+
+        public async Task<UserDTO> RegisterAsync(UserRegisterDTO dto)
         {
-            _userRepo.AddUser(user);
-            _logger.LogInformation("User {UserEmail} registered successfully with ID {UserId}.", user.Email, user.UID);
+            var user = _mapper.Map<User>(dto);
+            user.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+
+            await _userRepo.AddUserAsync(user);
+            await _userRepo.SaveChangesAsync();
+
+            _logger.LogInformation("User {Email} registered successfully.", user.Email);
+            return _mapper.Map<UserDTO>(user);
         }
 
-        public User? ValidateUser(string email, string password)
+        public async Task<(string AccessToken, RefreshToken RefreshToken)?> LoginAsync(UserLoginDTO dto)
         {
-            var user = _userRepo.GetByEmail(email);
-            if (user == null)
+            var user = await _userRepo.GetByEmailAsync(dto.Email);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.Password))
             {
-                _logger.LogWarning("Login failed: user {Email} not found.", email);
-                return null;
-            }
-
-            if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
-            {
-                _logger.LogWarning("Login failed: invalid password for {Email}.", email);
-                return null;
-            }
-
-            _logger.LogInformation("User {Email} validated successfully.", email);
-            return user;
-        }
-
-        public (string AccessToken, RefreshToken RefreshToken)? Login(string email, string password)
-        {
-            var user = ValidateUser(email, password);
-            if (user == null)
-            {
-                _logger.LogWarning("Login attempt failed for {Email}.", email);
+                _logger.LogWarning("Login failed for {Email}.", dto.Email);
                 return null;
             }
 
             var accessToken = GenerateJwtToken(user);
-            var refreshToken = GenerateRefreshToken(user.UID);
-            SaveRefreshToken(user.UID, refreshToken);
+            var refreshToken = await GenerateRefreshTokenAsync(user.UID);
 
-            _logger.LogInformation("User {Email} logged in successfully. Refresh token generated.", email);
+            await SaveRefreshTokenAsync(user.UID, refreshToken);
+
+            _logger.LogInformation("User {Email} logged in successfully.", dto.Email);
             return (accessToken, refreshToken);
         }
 
-        public void DeleteUser(int uid)
-        {
-            var user = _userRepo.GetUserById(uid);
-            if (user == null)
-            {
-                _logger.LogWarning("Delete failed: User {UserId} not found.", uid);
-                throw new KeyNotFoundException($"User with ID {uid} not found.");
-            }
-
-            _userRepo.DeleteUser(uid);
-            _logger.LogInformation("User {UserId} deleted successfully.", uid);
-        }
-
-        public IEnumerable<User> GetAllUsers()
-        {
-            var users = _userRepo.GetAllUsers();
-            _logger.LogInformation("Fetched {Count} users from database.", users.Count());
-            return users;
-        }
-
-        public User GetUSer(string email, string password)
-        {
-            var user = _userRepo.GetUSer(email, password);
-            if (user == null)
-            {
-                _logger.LogWarning("GetUser failed: invalid credentials for {Email}.", email);
-                throw new UnauthorizedAccessException("Invalid email or password.");
-            }
-
-            _logger.LogInformation("User {Email} retrieved successfully via GetUser.", email);
-            return user;
-        }
-
-        public User GetUserById(int uid)
-        {
-            var user = _userRepo.GetUserById(uid);
-            if (user == null)
-            {
-                _logger.LogWarning("User {UserId} not found.", uid);
-                throw new KeyNotFoundException($"User with ID {uid} not found.");
-            }
-
-            _logger.LogInformation("Fetched user with ID {UserId}.", uid);
-            return user;
-        }
-
-        public void UpdateUser(User user)
-        {
-            var existingUser = _userRepo.GetUserById(user.UID);
-            if (existingUser == null)
-            {
-                _logger.LogWarning("Update failed: User {UserId} not found.", user.UID);
-                throw new KeyNotFoundException($"User with ID {user.UID} not found.");
-            }
-
-            _userRepo.UpdateUser(user);
-            _logger.LogInformation("User {UserId} updated successfully.", user.UID);
-        }
-
-        public RefreshToken GenerateRefreshToken(int userId)
-        {
-            var refreshToken = new RefreshToken
-            {
-                Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray()),
-                Expires = DateTime.UtcNow.AddDays(7),
-                UserId = userId
-            };
-
-            _userRepo.AddRefreshToken(refreshToken);
-            _logger.LogInformation("Refresh token generated for User {UserId}.", userId);
-            return refreshToken;
-        }
-
-        public RefreshToken? ValidateRefreshToken(string token)
-        {
-            var rt = _userRepo.GetRefreshToken(token);
-            if (rt == null || !rt.IsActive)
-            {
-                _logger.LogWarning("Invalid or inactive refresh token used.");
-                return null;
-            }
-
-            _logger.LogInformation("Refresh token validated for User {UserId}.", rt.UserId);
-            return rt;
-        }
-
-        public void SaveRefreshToken(int userId, RefreshToken token)
-        {
-            var user = _userRepo.GetById(userId);
-            if (user == null)
-            {
-                _logger.LogWarning("Failed to save refresh token: User {UserId} not found.", userId);
-                return;
-            }
-
-            user.RefreshTokens.Add(token);
-            _userRepo.Update(user);
-
-            _logger.LogInformation("Refresh token saved for User {UserId}.", userId);
-        }
-
-        public RefreshToken? GetRefreshToken(string token)
-        {
-            var rt = _userRepo.GetRefreshToken(token);
-            if (rt == null)
-                _logger.LogWarning("Requested refresh token not found.");
-            else
-                _logger.LogInformation("Fetched refresh token for User {UserId}.", rt.UserId);
-
-            return rt;
-        }
-
-        public void RevokeRefreshToken(string token)
-        {
-            var refresh = _userRepo.GetRefreshToken(token);
-            if (refresh != null)
-            {
-                refresh.Revoked = DateTime.UtcNow;
-                _ctx.RefreshTokens.Update(refresh);
-                _ctx.SaveChanges();
-
-                _logger.LogInformation("Refresh token revoked for User {UserId}.", refresh.UserId);
-            }
-            else
-            {
-                _logger.LogWarning("Attempt to revoke non-existent refresh token.");
-            }
-        }
-
-        public string GenerateJwtToken(User user)
+        private string GenerateJwtToken(User user)
         {
             var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -217,20 +79,102 @@ namespace E_CommerceSystem.Services
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
-            _logger.LogInformation("JWT access token generated for User {UserId}.", user.UID);
-
             return tokenHandler.WriteToken(token);
         }
 
-        public User? GetUserByEmail(string email)
-        {
-            var user = _userRepo.GetByEmail(email);
-            if (user == null)
-                _logger.LogWarning("User with email {Email} not found.", email);
-            else
-                _logger.LogInformation("Fetched user by email {Email}.", email);
+        // ==================== USERS ====================
 
-            return user;
+        public async Task<UserDTO?> GetUserByIdAsync(int uid)
+        {
+            var user = await _userRepo.GetByIdAsync(uid);
+            return user != null ? _mapper.Map<UserDTO>(user) : null;
+        }
+
+        public async Task<IEnumerable<UserDTO>> GetAllUsersAsync()
+        {
+            var users = await _userRepo.GetAllUsersAsync();
+            return _mapper.Map<IEnumerable<UserDTO>>(users);
+        }
+
+        public async Task UpdateUserAsync(UserDTO dto)
+        {
+            var user = await _userRepo.GetByIdAsync(dto.UID);
+            if (user == null)
+            {
+                _logger.LogWarning("Update failed: User {UserId} not found.", dto.UID);
+                throw new KeyNotFoundException($"User with ID {dto.UID} not found.");
+            }
+
+            _mapper.Map(dto, user);
+            await _userRepo.UpdateUserAsync(user);
+            await _userRepo.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} updated successfully.", dto.UID);
+        }
+
+        public async Task DeleteUserAsync(int uid)
+        {
+            var user = await _userRepo.GetByIdAsync(uid);
+            if (user == null)
+            {
+                _logger.LogWarning("Delete failed: User {UserId} not found.", uid);
+                throw new KeyNotFoundException($"User with ID {uid} not found.");
+            }
+
+            await _userRepo.DeleteUserAsync(uid);
+            await _userRepo.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} deleted successfully.", uid);
+        }
+
+        public async Task<UserDTO?> GetUserByEmailAsync(string email)
+        {
+            var user = await _userRepo.GetByEmailAsync(email);
+            return user != null ? _mapper.Map<UserDTO>(user) : null;
+        }
+
+        // ==================== REFRESH TOKENS ====================
+
+        public async Task<RefreshToken> GenerateRefreshTokenAsync(int userId)
+        {
+            var refreshToken = new RefreshToken
+            {
+                Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray()),
+                Expires = DateTime.UtcNow.AddDays(7),
+                UserId = userId
+            };
+
+            await _userRepo.AddRefreshTokenAsync(refreshToken);
+            await _userRepo.SaveChangesAsync();
+
+            return refreshToken;
+        }
+
+        public async Task<RefreshToken?> ValidateRefreshTokenAsync(string token)
+        {
+            var rt = await _userRepo.GetRefreshTokenAsync(token);
+            return (rt != null && rt.IsActive) ? rt : null;
+        }
+
+        public async Task SaveRefreshTokenAsync(int userId, RefreshToken token)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return;
+
+            user.RefreshTokens.Add(token);
+            await _userRepo.UpdateUserAsync(user);
+            await _userRepo.SaveChangesAsync();
+        }
+
+        public async Task<RefreshToken?> GetRefreshTokenAsync(string token)
+        {
+            return await _userRepo.GetRefreshTokenAsync(token);
+        }
+
+        public async Task RevokeRefreshTokenAsync(string token)
+        {
+            await _userRepo.RevokeRefreshTokenAsync(token);
+            await _userRepo.SaveChangesAsync();
         }
     }
 }
