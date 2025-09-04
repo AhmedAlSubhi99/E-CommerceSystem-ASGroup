@@ -2,6 +2,7 @@
 
 namespace E_CommerceSystem.Models
 {
+    // DTO for returning product info to clients
     public class ProductDTO
     {
         [Required]
@@ -10,7 +11,7 @@ namespace E_CommerceSystem.Models
         public string Description { get; set; } = string.Empty;
 
         [Required]
-        [Range(0, int.MaxValue)]
+        [Range(0, double.MaxValue)]
         public decimal Price { get; set; }
 
         [Required]
@@ -18,8 +19,9 @@ namespace E_CommerceSystem.Models
         public int StockQuantity { get; set; }
 
         public string? ImageUrl { get; set; }
-
     }
+
+    // DTO for creating a new product
     public class ProductCreateDTO
     {
         [Required]
@@ -42,9 +44,10 @@ namespace E_CommerceSystem.Models
         public int SupplierId { get; set; }
     }
 
+    // DTO for updating an existing product
     public class ProductUpdateDTO : ProductCreateDTO
     {
+        [Required]
         public int ProductId { get; set; }
     }
 }
-
