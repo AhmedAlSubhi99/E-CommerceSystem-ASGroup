@@ -12,48 +12,40 @@ namespace E_CommerceSystem.Repositories
             _context = context;
         }
 
-        public void AddOrderProducts(OrderProducts product)
+        // ==================== CREATE ====================
+        public async Task AddOrderProductsAsync(OrderProducts orderProduct)
         {
-            try
-            {
-                _context.OrderProducts.Add(product);
-                _context.SaveChanges();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
+            await _context.OrderProducts.AddAsync(orderProduct);
         }
 
-        public IEnumerable<OrderProducts> GetAllOrders()
+        // ==================== READ ====================
+        public async Task<IEnumerable<OrderProducts>> GetAllOrdersAsync()
         {
-            try
-            {
-                return _context.OrderProducts.ToList();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
+            return await _context.OrderProducts
+                .AsNoTracking()
+                .ToListAsync();
         }
-        public List<OrderProducts> GetOrdersByOrderId(int oid)
+
+        public async Task<IEnumerable<OrderProducts>> GetByOrderIdAsync(int orderId, bool includeProduct = false)
         {
-            try
+            var query = _context.OrderProducts.AsQueryable();
+
+            if (includeProduct)
             {
-                return _context.OrderProducts.Where(p => p.OID == oid).ToList();
+                query = query
+                    .Include(op => op.Product)
+                    .Include(op => op.Order);
             }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
-        public IList<OrderProducts> GetByOrderIdWithProduct(int orderId)
-        {
-            return _context.OrderProducts
-                .Include(op => op.product)
-                .Include(op => op.Order)
+
+            return await query
                 .Where(op => op.OID == orderId)
-                .ToList();
+                .ToListAsync();
+        }
+
+        // ==================== UNIT OF WORK ====================
+        public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
         }
     }
 }

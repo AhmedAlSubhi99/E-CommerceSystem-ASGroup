@@ -71,7 +71,7 @@ namespace E_CommerceSystem.Services
             // Rule 1
             bool purchased = _ctx.OrderProducts
                 .Include(op => op.Order)
-                .Any(op => op.PID == productId && op.Order.UID == userId);
+                .Any(op => op.PID == productId && op.Order.UserId == userId);
 
             if (!purchased)
             {
@@ -145,7 +145,7 @@ namespace E_CommerceSystem.Services
         private void RecalculateProductRating(int pid)
         {
             var reviews = _reviewRepo.GetReviewByProductId(pid).ToList();
-            var product = _productService.GetProductById(pid);
+            var product = _productService.GetProductByIdAsync(pid);
             if (product == null)
             {
                 _logger.LogError("Recalculate rating failed: Product {ProductId} not found.", pid);
@@ -153,10 +153,10 @@ namespace E_CommerceSystem.Services
             }
 
             var averageRating = reviews.Any() ? reviews.Average(r => r.Rating) : 0.0;
-            product.OverallRating = Convert.ToDecimal(averageRating);
+            product.Result.OverallRating = Convert.ToDecimal(averageRating);
 
             var dto = _mapper.Map<ProductUpdateDTO>(product);
-            _productService.UpdateProduct(product.PID, dto, null!);
+            _productService.UpdateProductAsync(pid, dto, null).Wait();
 
             _logger.LogInformation("Recalculated average rating {Rating} for Product {ProductId}.", averageRating, pid);
         }

@@ -12,14 +12,16 @@ namespace E_CommerceSystem.Models
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal TotalAmount { get; set; }
+        public decimal TotalAmount { get; set; }  // should be calculated in service layer
 
-        [ForeignKey("user")]
-        public int UID { get; set; }
-        public virtual User user { get; set; } = null!;
+        // Foreign key to User
+        [ForeignKey(nameof(User))]
+        public int UserId { get; set; }
+        public virtual User User { get; set; } = null!;
 
+        // Related products
         [JsonIgnore]
-        public virtual ICollection<OrderProducts> OrderProducts { get; set; }
+        public virtual ICollection<OrderProducts> OrderProducts { get; set; } = new List<OrderProducts>();
 
         [Required]
         public OrderStatus Status { get; set; } = OrderStatus.Pending;

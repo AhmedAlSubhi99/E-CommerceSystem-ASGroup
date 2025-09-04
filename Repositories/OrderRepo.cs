@@ -5,102 +5,72 @@ namespace E_CommerceSystem.Repositories
 {
     public class OrderRepo : IOrderRepo
     {
-        public ApplicationDbContext _context;
-
+        private readonly ApplicationDbContext _context;
 
         public OrderRepo(ApplicationDbContext context)
         {
             _context = context;
         }
 
-        public IEnumerable<Order> GetAllOrders()
+        // ==================== CRUD ====================
+
+        public async Task<IEnumerable<Order>> GetAllOrdersAsync()
         {
-            try
+            return await _context.Orders
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<Order?> GetOrderByIdAsync(int oid)
+        {
+            return await _context.Orders
+                .FirstOrDefaultAsync(o => o.OID == oid);
+        }
+
+        public async Task<IEnumerable<Order>> GetOrdersByUserIdAsync(int uid)
+        {
+            return await _context.Orders
+                .Where(o => o.UserId == uid)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task AddOrderAsync(Order order)
+        {
+            await _context.Orders.AddAsync(order);
+        }
+
+        public Task UpdateOrderAsync(Order order)
+        {
+            _context.Orders.Update(order);
+            return Task.CompletedTask;
+        }
+
+        public async Task DeleteOrderAsync(int oid)
+        {
+            var order = await GetOrderByIdAsync(oid);
+            if (order != null)
             {
-                return _context.Orders.ToList();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
+                _context.Orders.Remove(order);
             }
         }
 
-        public Order GetOrderById(int oid)
-        {
-            try
-            {
-                return _context.Orders.FirstOrDefault(o => o.OID == oid);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
+        // ==================== DETAILS ====================
 
-        public IEnumerable<Order> GetOrderByUserId(int uid)
-        {
-            try
-            {
-                return _context.Orders.Where(o => o.UID == uid).ToList();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
-
-        public void AddOrder(Order order)
-        {
-            try
-            {
-                _context.Orders.Add(order);
-                _context.SaveChanges();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
-
-        public void DeleteOrder(int oid)
-        {
-            try
-            {
-                var order = GetOrderById(oid);
-                if (order != null)
-                {
-                    _context.Orders.Remove(order);
-                    _context.SaveChanges();
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
-
-        public void UpdateOrder(Order order)
-        {
-            try
-            {
-                _context.Orders.Update(order);
-                _context.SaveChanges();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Database error: {ex.Message}");
-            }
-        }
         public async Task<Order?> GetOrderWithDetailsAsync(int orderId)
         {
             return await _context.Orders
                 .Include(o => o.OrderProducts)
-                    .ThenInclude(op => op.product)
-                .Include(o => o.user)
+                    .ThenInclude(op => op.Product)
+                .Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.OID == orderId);
         }
 
-        public Task SaveChangesAsync() => _context.SaveChangesAsync();
+        // ==================== UNIT OF WORK ====================
 
+        public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
+        }
     }
 }

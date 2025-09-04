@@ -8,30 +8,27 @@ namespace E_CommerceSystem.Models
     [PrimaryKey(nameof(OID), nameof(PID))]
     public class OrderProducts
     {
-
-        [Range (0, int.MaxValue)]
+        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
         public int Quantity { get; set; }
 
-        
-        [ForeignKey("Order")]
-
+        // Foreign key to Order
+        [ForeignKey(nameof(Order))]
         public int OID { get; set; }
         [JsonIgnore]
-        public Order Order { get; set; }
+        public Order Order { get; set; } = null!;
 
-        
-        [ForeignKey("Product")]
+        // Foreign key to Product
+        [ForeignKey(nameof(Product))]
         public int PID { get; set; }
         [JsonIgnore]
-        public Product product { get; set; }
+        public Product Product { get; set; } = null!;
 
-        [JsonIgnore]
-        public decimal TotalPrice => Quantity * (product?.Price ?? 0);
-        [JsonIgnore]
-        public decimal UnitPrice => product?.Price ?? 0;
+        // Price at the time of order (snapshot)
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal UnitPrice { get; set; }
 
-
-
+        // Calculated total
+        [NotMapped]
+        public decimal TotalPrice => Quantity * UnitPrice;
     }
 }
-

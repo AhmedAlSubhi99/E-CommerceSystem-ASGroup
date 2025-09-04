@@ -1,14 +1,17 @@
 ﻿using E_CommerceSystem.Models;
 
-
 namespace E_CommerceSystem.Repositories
 {
     public interface IOrderProductsRepo
     {
-        void AddOrderProducts(OrderProducts product);
-        IEnumerable<OrderProducts> GetAllOrders();
-        List<OrderProducts> GetOrdersByOrderId(int oid);
-        IList<OrderProducts> GetByOrderIdWithProduct(int orderId);
+        // ==================== CREATE ====================
+        Task AddOrderProductsAsync(OrderProducts orderProduct);
 
+        // ==================== READ ====================
+        Task<IEnumerable<OrderProducts>> GetAllOrdersAsync();
+        Task<IEnumerable<OrderProducts>> GetByOrderIdAsync(int orderId, bool includeProduct = false);
+
+        // ==================== UNIT OF WORK ====================
+        Task<int> SaveChangesAsync();
     }
 }

@@ -19,13 +19,14 @@
         public int OrderId { get; set; }
         public int UserId { get; set; }
         public decimal TotalAmount { get; set; }
-        public string Status { get; set; } = "Pending"; 
+        public string Status { get; set; } = "Pending";
         public DateTime CreatedAtUtc { get; set; }
         public DateTime? StatusUpdatedAtUtc { get; set; }
     }
 
-    public class UpdateOrderStatusDTO
+    public class UpdateOrderStatusDto
     {
-        public string Status { get; set; } = default!;
+        public string UStatus { get; set; } = default!;
+
     }
 }

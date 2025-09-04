@@ -13,201 +13,78 @@ namespace E_CommerceSystem.Controllers
     public class OrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
-        private readonly IOrderSummaryService _orderSummaryService;
         private readonly IInvoiceService _invoiceService;
         private readonly ILogger<OrderController> _logger;
-        private readonly IMapper _mapper;
 
         public OrderController(
             IOrderService orderService,
-            IOrderSummaryService orderSummaryService,
             IInvoiceService invoiceService,
-            ILogger<OrderController> logger,
-            IMapper mapper)
+            ILogger<OrderController> logger)
         {
             _orderService = orderService;
-            _orderSummaryService = orderSummaryService;
             _invoiceService = invoiceService;
             _logger = logger;
-            _mapper = mapper;
         }
 
         // ---------------------------
         // Place Order
         // ---------------------------
-        [HttpPost("PlaceOrder")]
-        public async Task<IActionResult> PlaceOrder([FromBody] List<OrderItemDTO> items, int uid)
+        [HttpPost("place")]
+        public async Task<IActionResult> PlaceOrder([FromBody] List<OrderItemDTO> items)
         {
-            await _orderService.PlaceOrder(items, uid);
-            return Ok("Order placed successfully.");
+            int userId = GetUserId();
+            var order = await _orderService.PlaceOrderAsync(items, userId);
+            return Ok(order);
         }
 
         // ---------------------------
-        // Get All Orders (for current user)
+        // Get My Orders
         // ---------------------------
-        [HttpGet("GetAllOrders")]
-        public IActionResult GetAllOrders()
+        [HttpGet("my")]
+        public async Task<IActionResult> GetMyOrders()
         {
-            int uid = GetUserId();
-            var entities = _orderService.GetAllOrders(uid);
-            var dtos = _mapper.Map<List<OrdersOutputDTO>>(entities);
-            return Ok(dtos);
+            int userId = GetUserId();
+            var orders = await _orderService.GetOrdersByUserAsync(userId);
+            return Ok(orders);
         }
 
         // ---------------------------
-        // Get Order By Id
-        // ---------------------------
-        [HttpGet("GetOrderById/{orderId:int}")]
-        public IActionResult GetOrderById(int orderId)
-        {
-            int uid = GetUserId();
-            var rows = _orderService.GetOrderById(orderId, uid);
-            return rows == null ? NotFound() : Ok(rows);
-        }
-
-        // ---------------------------
-        // Get Order Summary
-        // ---------------------------
-        [HttpGet("{orderId:int}/summary")]
-        public ActionResult<OrderSummaryDTO> GetSummary(int orderId) =>
-            Ok(_orderSummaryService.GetSummaryByOrderId(orderId));
-
-        // ---------------------------
-        // Get Paged Summaries (Admin only)
-        // ---------------------------
-        [Authorize(Roles = "admin")]
-        [HttpGet("summaries")]
-        public ActionResult<IEnumerable<OrderSummaryDTO>> GetSummaries(
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 20) =>
-            Ok(_orderSummaryService.GetSummaries(pageNumber, pageSize));
-
-        // ---------------------------
-        // Cancel Order
-        // ---------------------------
-        [HttpPost("CancelOrder/{orderId}")]
-        public async Task<IActionResult> CancelOrder(int orderId, int uid)
-        {
-            await _orderService.CancelOrder(orderId, uid);
-            return Ok("Order cancelled successfully.");
-        }
-
-        // ---------------------------
-        // Update Order Status (Admin/Manager)
+        // Get All Orders (Admin/Manager)
         // ---------------------------
         [Authorize(Roles = "admin,manager")]
-        [HttpPatch("{orderId:int}/status")]
-        public IActionResult UpdateStatus(int orderId, [FromBody] UpdateOrderStatusDTO dto)
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
+            var orders = await _orderService.GetAllOrdersAsync(page, pageSize);
+            return Ok(orders);
+        }
+
+        // ---------------------------
+        // Get Order Details
+        // ---------------------------
+        [HttpGet("{orderId:int}")]
+        public async Task<IActionResult> GetOrderDetails(int orderId)
+        {
+            var order = await _orderService.GetOrderDetailsAsync(orderId);
+            return order == null ? NotFound() : Ok(order);
+        }
+
+        // ---------------------------
+        // Update Order Status (Admin/Manager or Owner Cancel)
+        // ---------------------------
+        [HttpPatch("{orderId:int}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(int orderId, [FromBody] UpdateOrderStatusDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.UStatus))
                 return BadRequest("Status is required.");
 
             int userId = GetUserId();
-            var newStatus = Enum.Parse<OrderStatus>(dto.Status, true);
+            bool isAdminOrManager = User.IsInRole("admin") || User.IsInRole("manager");
 
-            var updated = _orderService.SetStatus(orderId, newStatus, userId, true);
-            return updated != null
-                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
-                : BadRequest("Invalid status update.");
-        }
-
-        // ---------------------------
-        // Quick status transitions
-        // ---------------------------
-        [Authorize(Roles = "admin,manager")]
-        [HttpPost("{orderId:int}/Pay")]
-        public IActionResult MarkPaid(int orderId)
-        {
-            int userId = GetUserId();
-            var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
-            return updated != null
-                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
-                : BadRequest("Unable to mark as paid.");
-        }
-
-        [Authorize(Roles = "admin,manager")]
-        [HttpPost("{orderId:int}/Ship")]
-        public IActionResult MarkShipped(int orderId)
-        {
-            int userId = GetUserId();
-            var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
-            return updated != null
-                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
-                : BadRequest("Unable to mark as Ship.");
-        }
-
-        [Authorize(Roles = "admin,manager")]
-        [HttpPost("{orderId:int}/Deliver")]
-        public IActionResult MarkDelivered(int orderId)
-        {
-            int userId = GetUserId();
-            var updated = _orderService.SetStatus(orderId, OrderStatus.Paid, userId, true);
-            return updated != null
-                ? Ok(_mapper.Map<OrdersOutputDTO>(updated))
-                : BadRequest("Unable to mark as Deliver.");
-        }
-
-        // ---------------------------
-        // Order Details
-        // ---------------------------
-        [HttpGet("{orderId:int}/details")]
-        public ActionResult<OrderSummaryDTO> GetOrderDetails(int orderId)
-        {
-            var details = _orderService.GetOrderDetails(orderId);
-            return details is null ? NotFound() : Ok(details);
-        }
-
-        // ---------------------------
-        // Admin Aggregated Summary
-        // ---------------------------
-        [Authorize(Roles = "admin")]
-        [HttpGet("summary")]
-        public ActionResult<AdminOrderSummaryDTO> GetSummary(
-            [FromQuery] DateTime? from,
-            [FromQuery] DateTime? to) =>
-            Ok(_orderSummaryService.GetSummary(from, to));
-        // ---------------------------
-        // Invoice (sync)
-        // ---------------------------
-        [HttpGet("{orderId:int}/invoice-sync")]
-        public IActionResult GetInvoice(int orderId)
-        {
-            int userId = GetUserId();
-            bool isAdmin = User.IsInRole("admin");
-
-            var pdf = _invoiceService.GenerateInvoice(orderId, userId, isAdmin);
-            if (pdf == null) return NotFound("Invoice not found or access denied.");
-
-            return File(pdf, "application/pdf", $"Invoice_{orderId}.pdf");
-        }
-
-        // ---------------------------
-        // Invoice (async)
-        // ---------------------------
-        [HttpGet("{orderId:int}/invoice")]
-        public async Task<IActionResult> DownloadInvoice(
-            int orderId,
-            [FromServices] IInvoiceService invoiceService)
-        {
-            int requestUserId = GetUserId();
-
-            var result = await invoiceService.GeneratePdfAsync(orderId, requestUserId);
-            if (result == null)
-                return NotFound("Invoice not available or you don't have access to this order.");
-
-            var (bytes, fileName) = result.Value;
-            return File(bytes, "application/pdf", fileName);
-        }
-
-
-        [Authorize(Roles = "admin,manager")]
-        [HttpPut("UpdateStatus/{orderId}")]
-        public IActionResult UpdateOrderStatus(int orderId, [FromBody] OrderStatus newStatus)
-        {
             try
             {
-                _orderService.UpdateOrderStatus(orderId, newStatus);
-                return Ok($"Order {orderId} status updated to {newStatus}");
+                var updated = await _orderService.UpdateOrderStatusAsync(orderId, dto, userId, isAdminOrManager);
+                return updated != null ? Ok(updated) : NotFound();
             }
             catch (Exception ex)
             {
@@ -215,7 +92,40 @@ namespace E_CommerceSystem.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        // Cancel Order
+        [HttpPost("{orderId:int}/cancel")]
+        public async Task<IActionResult> CancelOrder(int orderId)
+        {
+            int userId = GetUserId();
+            var cancelled = await _orderService.CancelOrderAsync(orderId, userId);
 
+            if (cancelled)
+            {
+                _logger.LogInformation("User {UserId} cancelled order {OrderId}", userId, orderId);
+                return Ok(new { message = "Order cancelled successfully" });
+            }
+
+            return BadRequest("Unable to cancel order.");
+        }
+
+        // Invoice
+        [HttpGet("{orderId:int}/invoice")]
+        public async Task<IActionResult> DownloadInvoice(int orderId)
+        {
+            int userId = GetUserId();
+            bool isAdmin = User.IsInRole("Admin"); // ensure consistent case
+
+            var result = await _invoiceService.GeneratePdfAsync(orderId, userId, isAdmin);
+            if (result == null)
+            {
+                _logger.LogWarning("Invoice generation failed for Order {OrderId} by User {UserId}", orderId, userId);
+                return NotFound("Invoice not available or access denied.");
+            }
+
+            var (bytes, fileName) = result.Value;
+            _logger.LogInformation("Invoice generated for Order {OrderId} by User {UserId}", orderId, userId);
+            return File(bytes, "application/pdf", fileName);
+        }
 
         // ---------------------------
         // Helpers
@@ -227,7 +137,5 @@ namespace E_CommerceSystem.Controllers
                 throw new UnauthorizedAccessException("Invalid user id in token.");
             return userId;
         }
-
-
     }
 }
