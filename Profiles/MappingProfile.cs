@@ -25,6 +25,8 @@ public class MappingProfile : Profile
         // -----------------
         // Product 
         // -----------------
+
+        CreateMap<Product, ProductDTO>().ReverseMap();
         CreateMap<ProductCreateDTO, Product>();
         CreateMap<ProductUpdateDTO, Product>()
             .ForMember(dest => dest.PID, opt => opt.Ignore());
@@ -37,6 +39,8 @@ public class MappingProfile : Profile
             .ForMember(u => u.Password, o => o.Ignore())
             .ForMember(u => u.CreatedAt, o => o.Ignore());
         CreateMap<User, LoginResponseDTO>();
+        CreateMap<RegisterUserDTO, User>();
+
 
         // -----------------
         // Orders 
@@ -64,12 +68,15 @@ public class MappingProfile : Profile
                 opt.MapFrom(s => Enum.Parse<OrderStatus>(s.Status, true)))
             .ForMember(d => d.OID, opt => opt.Ignore());
 
+
         // -----------------
         // Review 
         // -----------------
         CreateMap<Review, ReviewDTO>();
         CreateMap<ReviewCreateDTO, Review>()
             .ForMember(d => d.ReviewID, opt => opt.Ignore());
+
+
 
         // -----------------
         // OrderItem 
