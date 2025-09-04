@@ -14,33 +14,37 @@ namespace E_CommerceSystem.Services
             _logger = logger;
         }
 
-        public void AddOrderProducts(OrderProducts product)
+        // ==================== CREATE ====================
+        public async Task AddOrderProductsAsync(OrderProducts product)
         {
             try
             {
-                _orderProductsRepo.AddOrderProducts(product);
-                _logger.LogInformation("Added OrderProduct: OrderId={OrderId}, ProductId={ProductId}, Quantity={Quantity}",
-                                       product.OID, product.PID, product.Quantity);
+                await _orderProductsRepo.AddOrderProductsAsync(product);
+                _logger.LogInformation(
+                    "Added OrderProduct: OrderId={OrderId}, ProductId={ProductId}, Quantity={Quantity}",
+                    product.OID, product.PID, product.Quantity);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while adding OrderProduct: OrderId={OrderId}, ProductId={ProductId}",
-                                 product.OID, product.PID);
+                _logger.LogError(ex,
+                    "Error while adding OrderProduct: OrderId={OrderId}, ProductId={ProductId}",
+                    product.OID, product.PID);
                 throw;
             }
         }
 
-        public IEnumerable<OrderProducts> GetAllOrders()
+        // ==================== READ ====================
+        public async Task<IEnumerable<OrderProducts>> GetAllOrdersAsync()
         {
-            var orders = _orderProductsRepo.GetAllOrders();
+            var orders = await _orderProductsRepo.GetAllOrdersAsync();
             _logger.LogInformation("Fetched {Count} OrderProducts entries.", orders.Count());
             return orders;
         }
 
-        public List<OrderProducts> GetOrdersByOrderId(int oid)
+        public async Task<List<OrderProducts>> GetOrdersByOrderIdAsync(int oid)
         {
-            var orders = _orderProductsRepo.GetOrdersByOrderId(oid);
-            if (orders == null || orders.Count == 0)
+            var orders = (await _orderProductsRepo.GetByOrderIdAsync(oid)).ToList();
+            if (orders.Count == 0)
             {
                 _logger.LogWarning("No OrderProducts found for OrderId={OrderId}", oid);
             }
@@ -51,9 +55,9 @@ namespace E_CommerceSystem.Services
             return orders;
         }
 
-        public IList<OrderProducts> GetByOrderIdWithProduct(int orderId)
+        public async Task<IList<OrderProducts>> GetByOrderIdWithProductAsync(int orderId)
         {
-            var result = _orderProductsRepo.GetByOrderIdWithProduct(orderId);
+            var result = (await _orderProductsRepo.GetByOrderIdAsync(orderId, includeProduct: true)).ToList();
             _logger.LogInformation("Fetched {Count} OrderProducts with product details for OrderId={OrderId}.",
                                    result.Count, orderId);
             return result;

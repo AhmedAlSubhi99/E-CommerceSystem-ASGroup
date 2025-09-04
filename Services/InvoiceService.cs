@@ -7,37 +7,42 @@ namespace E_CommerceSystem.Services
 {
     public class InvoiceService : IInvoiceService
     {
-        private readonly IOrderSummaryService _orderSummaryService;
+        private readonly IOrderService _orderService;
         private readonly ILogger<InvoiceService> _logger;
 
-        public InvoiceService(IOrderSummaryService orderSummaryService, ILogger<InvoiceService> logger)
+        public InvoiceService(IOrderService orderService, ILogger<InvoiceService> logger)
         {
-            _orderSummaryService = orderSummaryService;
+            _orderService = orderService;
             _logger = logger;
         }
 
-        // ---------------------------
-        // Sync implementation
-        // ---------------------------
-        public byte[]? GenerateInvoice(int orderId, int requestUserId, bool isAdmin)
+        // ====================
+        // Async only
+        // ====================
+        public async Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId, bool isAdmin)
         {
             try
             {
-                var order = _orderSummaryService.GetOrderSummary(orderId);
+                var order = await _orderService.GetOrderDetailsAsync(orderId);
                 if (order == null)
                 {
                     _logger.LogWarning("Invoice generation failed: Order {OrderId} not found.", orderId);
                     return null;
                 }
 
-                if (order.UID != requestUserId && !isAdmin)
+                if (order.UserId != requestUserId && !isAdmin)
                 {
                     _logger.LogWarning("Unauthorized invoice access attempt for Order {OrderId} by User {UserId}.", orderId, requestUserId);
                     return null;
                 }
 
-                _logger.LogInformation("Invoice generated successfully for Order {OrderId} by User {UserId}.", orderId, requestUserId);
-                return BuildPdf(order);
+                var pdfBytes = BuildPdf(order);
+                var fileName = $"Invoice_{orderId}.pdf";
+
+                _logger.LogInformation("Invoice generated for Order {OrderId} by User {UserId}. File: {FileName}",
+                                       orderId, requestUserId, fileName);
+
+                return (pdfBytes, fileName);
             }
             catch (Exception ex)
             {
@@ -46,48 +51,9 @@ namespace E_CommerceSystem.Services
             }
         }
 
-        // ---------------------------
-        // Async implementation
-        // ---------------------------
-        public async Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(
-     int orderId, int requestUserId, bool isAdmin)
-        {
-            try
-            {
-                var order = await _orderSummaryService.GetOrderSummaryAsync(orderId);
-                if (order == null)
-                {
-                    _logger.LogWarning("Async invoice generation failed: Order {OrderId} not found.", orderId);
-                    return null;
-                }
-
-                if (order.UID != requestUserId && !isAdmin)
-                {
-                    _logger.LogWarning(
-                        "Unauthorized async invoice access attempt for Order {OrderId} by User {UserId}.",
-                        orderId, requestUserId);
-                    return null;
-                }
-
-                var pdfBytes = BuildPdf(order);
-                var fileName = $"Invoice_{orderId}.pdf";
-
-                _logger.LogInformation(
-                    "Async invoice generated for Order {OrderId} by User {UserId}. File: {FileName}",
-                    orderId, requestUserId, fileName);
-
-                return (pdfBytes, fileName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating async invoice for Order {OrderId}.", orderId);
-                throw;
-            }
-        }
-
-        // ---------------------------
+        // ====================
         // Common PDF builder
-        // ---------------------------
+        // ====================
         private byte[] BuildPdf(OrderSummaryDTO order)
         {
             _logger.LogDebug("Building PDF for Order {OrderId} with {LineCount} lines.",
@@ -155,6 +121,5 @@ namespace E_CommerceSystem.Services
 
             return document.GeneratePdf();
         }
-
     }
 }

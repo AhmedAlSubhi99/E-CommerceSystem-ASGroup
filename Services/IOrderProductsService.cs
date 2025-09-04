@@ -4,9 +4,12 @@ namespace E_CommerceSystem.Services
 {
     public interface IOrderProductsService
     {
-        void AddOrderProducts(OrderProducts product);
-        IEnumerable<OrderProducts> GetAllOrders();
-        List<OrderProducts> GetOrdersByOrderId(int oid);
-        IList<OrderProducts> GetByOrderIdWithProduct(int orderId);
+        // ==================== CREATE ====================
+        Task AddOrderProductsAsync(OrderProducts orderProduct);
+
+        // ==================== READ ====================
+        Task<IEnumerable<OrderProducts>> GetAllOrdersAsync();
+        Task<List<OrderProducts>> GetOrdersByOrderIdAsync(int orderId);
+        Task<IList<OrderProducts>> GetByOrderIdWithProductAsync(int orderId);
     }
 }

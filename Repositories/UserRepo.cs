@@ -20,6 +20,15 @@ namespace E_CommerceSystem.Repositories
         public async Task<User?> GetByIdAsync(int id) =>
             await _context.Users.FirstOrDefaultAsync(u => u.UID == id);
 
+        public async Task<User?> GetUserAsync(string email, string password)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user != null && BCrypt.Net.BCrypt.Verify(password, user.Password))
+                return user;
+
+            return null;
+        }
+
         public async Task<User?> GetByEmailAsync(string email) =>
             await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 

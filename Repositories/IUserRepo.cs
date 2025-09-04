@@ -12,6 +12,8 @@ namespace E_CommerceSystem.Repositories
         Task<IEnumerable<User>> GetAllUsersAsync();
         Task<User?> GetByIdAsync(int id);
         Task<User?> GetByEmailAsync(string email);
+        Task<User?> GetUserAsync(string email, string password);
+
 
         // ==================== REFRESH TOKENS ====================
         Task AddRefreshTokenAsync(RefreshToken token);

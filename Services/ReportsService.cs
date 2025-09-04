@@ -109,7 +109,7 @@ namespace E_CommerceSystem.Services
             if (from.HasValue) qOrders = qOrders.Where(o => o.OrderDate >= from.Value);
             if (to.HasValue) qOrders = qOrders.Where(o => o.OrderDate < to.Value);
 
-            var q = from g in qOrders.GroupBy(o => o.UID)
+            var q = from g in qOrders.GroupBy(o => o.UserId)
                     join u in _ctx.Users.AsNoTracking() on g.Key equals u.UID
                     orderby g.Count() descending, g.Sum(x => x.TotalAmount) descending
                     select new MostActiveCustomerDTO
