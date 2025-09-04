@@ -86,7 +86,7 @@ namespace E_CommerceSystem.Services
             _logger.LogInformation("Fetching top-rated products (MinReviews={MinReviews}, Take={Take}).", minReviews, take);
 
             var q = _ctx.Reviews.AsNoTracking()
-                .GroupBy(r => new { r.PID, r.product.ProductName })
+                .GroupBy(r => new { r.PID, r.Product.ProductName })
                 .Select(g => new TopRatedProductDTO
                 {
                     ProductId = g.Key.PID,

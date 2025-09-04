@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using E_CommerceSystem.Models.DTO;
+﻿using E_CommerceSystem.Models.DTO;
 using E_CommerceSystem.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,101 +8,105 @@ namespace E_CommerceSystem.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/[Controller]")]
+    [Route("api/[controller]")]
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
-        private readonly IConfiguration _configuration;
-        private readonly IMapper _mapper;
         private readonly ILogger<ReviewController> _logger;
 
-        public ReviewController(IReviewService reviewService, IConfiguration configuration, IMapper mapper, ILogger<ReviewController> logger)
+        public ReviewController(IReviewService reviewService, ILogger<ReviewController> logger)
         {
             _reviewService = reviewService;
-            _configuration = configuration;
-            _mapper = mapper;
             _logger = logger;
         }
 
-        [HttpPost("{productId:int}")]
-        public IActionResult AddReview(int productId, [FromBody] ReviewDTO dto)
+        // ==================== GET ====================
+
+        [AllowAnonymous]
+        [HttpGet("{productId:int}")]
+        public async Task<IActionResult> GetAllReviews(int productId, int pageNumber = 1, int pageSize = 10)
         {
-            if (dto == null)
-            {
-                _logger.LogWarning("AddReview failed: DTO was null for ProductId={ProductId}", productId);
-                return BadRequest("Review data is required.");
-            }
+            if (pageNumber < 1 || pageSize < 1)
+                return BadRequest("PageNumber and PageSize must be greater than 0.");
 
-            int userId = GetUserIdFromToken();
-            var review = _reviewService.AddReview(userId, productId, dto);
-            var result = _mapper.Map<ReviewDTO>(review);
-
-            _logger.LogInformation("User {UserId} added a review for ProductId={ProductId} with ReviewId={ReviewId}", userId, productId, review.ReviewID);
-
-            return Ok(result);
+            var reviews = await _reviewService.GetAllReviewsAsync(pageNumber, pageSize, productId);
+            return Ok(reviews);
         }
 
         [AllowAnonymous]
-        [HttpGet("GetAllReviews")]
-        public IActionResult GetAllReviews([FromQuery] int productId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        [HttpGet("detail/{reviewId:int}")]
+        public async Task<IActionResult> GetReviewById(int reviewId)
         {
-            if (pageNumber < 1 || pageSize < 1)
-            {
-                _logger.LogWarning("Invalid pagination values: PageNumber={PageNumber}, PageSize={PageSize}", pageNumber, pageSize);
-                return BadRequest("PageNumber and PageSize must be greater than 0.");
-            }
-
-            var reviews = _reviewService.GetAllReviews(pageNumber, pageSize, productId);
-            var reviewDtos = _mapper.Map<List<ReviewDTO>>(reviews);
-
-            _logger.LogInformation("Fetched {Count} reviews for ProductId={ProductId}, Page={PageNumber}, PageSize={PageSize}", reviewDtos.Count, productId, pageNumber, pageSize);
-
-            return Ok(reviewDtos);
-        }
-
-        [Authorize]
-        [HttpDelete("{reviewId:int}")]
-        public IActionResult DeleteReview(int reviewId)
-        {
-            int userId = GetUserIdFromToken();
-            bool isAdmin = User.IsInRole("admin");
-
-            _reviewService.DeleteReview(reviewId, userId, isAdmin);
-
-            _logger.LogInformation("Review {ReviewId} deleted by User {UserId} (Admin={IsAdmin})", reviewId, userId, isAdmin);
-
-            return NoContent();
-        }
-
-        [HttpPut("UpdateReview/{reviewId:int}")]
-        public IActionResult UpdateReview(int reviewId, [FromBody] ReviewDTO reviewDTO)
-        {
-            if (reviewDTO == null)
-            {
-                _logger.LogWarning("UpdateReview failed: DTO was null for ReviewId={ReviewId}", reviewId);
-                return BadRequest("Review data is required.");
-            }
-
-            var existing = _reviewService.GetReviewById(reviewId);
-            if (existing == null)
-            {
-                _logger.LogWarning("UpdateReview failed: Review {ReviewId} not found.", reviewId);
+            var review = await _reviewService.GetReviewByIdAsync(reviewId);
+            if (review == null)
                 return NotFound($"Review with ID {reviewId} not found.");
-            }
+            return Ok(review);
+        }
 
-            var userId = GetUserIdFromToken();
-            if (existing.UID != userId)
+        // ==================== POST ====================
+
+        [Authorize(Roles = "customer,admin,manager")]
+        [HttpPost("{productId:int}")]
+        public async Task<IActionResult> AddReview(int productId, [FromBody] ReviewCreateDTO dto)
+        {
+            if (dto == null)
+                return BadRequest("Review data is required.");
+
+            int userId = GetUserIdFromToken();
+            var created = await _reviewService.AddReviewAsync(userId, productId, dto);
+
+            _logger.LogInformation("User {UserId} added Review {ReviewId} for Product {ProductId}.",
+                userId, created.ReviewID, productId);
+
+            return CreatedAtAction(nameof(GetReviewById), new { reviewId = created.ReviewID }, created);
+        }
+
+        // ==================== PUT ====================
+
+        [Authorize(Roles = "customer,admin,manager")]
+        [HttpPut("{reviewId:int}")]
+        public async Task<IActionResult> UpdateReview(int reviewId, [FromBody] ReviewUpdateDTO dto)
+        {
+            if (dto == null)
+                return BadRequest("Review data is required.");
+
+            try
             {
-                _logger.LogWarning("User {UserId} attempted to update Review {ReviewId} that does not belong to them.", userId, reviewId);
-                return BadRequest("You are not authorized to update this review.");
+                var updated = await _reviewService.UpdateReviewAsync(reviewId, dto);
+                return Ok(updated);
             }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
 
-            _mapper.Map(reviewDTO, existing);
-            _reviewService.UpdateReview(reviewId, reviewDTO);
+        // ==================== DELETE ====================
 
-            _logger.LogInformation("Review {ReviewId} updated successfully by User {UserId}.", reviewId, userId);
+        [Authorize(Roles = "customer,admin")]
+        [HttpDelete("{reviewId:int}")]
+        public async Task<IActionResult> DeleteReview(int reviewId)
+        {
+            try
+            {
+                int userId = GetUserIdFromToken();
+                bool isAdmin = User.IsInRole("admin");
 
-            return Ok($"Review with ID {reviewId} updated successfully.");
+                await _reviewService.DeleteReviewAsync(reviewId, userId, isAdmin);
+
+                _logger.LogInformation("Review {ReviewId} deleted by User {UserId} (Admin={IsAdmin}).",
+                    reviewId, userId, isAdmin);
+
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
         }
 
         // ---------------------------

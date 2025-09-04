@@ -22,25 +22,36 @@ public class MappingProfile : Profile
         CreateMap<SupplierUpdateDto, Supplier>()
             .ForMember(dest => dest.SupplierId, opt => opt.Ignore());
 
+
         // -----------------
         // Product 
         // -----------------
 
+        // Entity -> DTO (response includes OverallRating)
         CreateMap<Product, ProductDTO>().ReverseMap();
-        CreateMap<ProductCreateDTO, Product>();
+
+        // DTO -> Entity for creating products
+        CreateMap<ProductCreateDTO, Product>()
+            .ForMember(dest => dest.PID, opt => opt.Ignore()) // PK set by DB
+            .ForMember(dest => dest.OverallRating, opt => opt.Ignore()) // calculated, not client input
+            .ForMember(dest => dest.ImageUrl, opt => opt.Ignore()); // handled by service
+
+        // DTO -> Entity for updating products
         CreateMap<ProductUpdateDTO, Product>()
-            .ForMember(dest => dest.PID, opt => opt.Ignore());
+            .ForMember(dest => dest.PID, opt => opt.Ignore()) // don’t overwrite PK
+            .ForMember(dest => dest.OverallRating, opt => opt.Ignore()) // still calculated
+            .ForMember(dest => dest.ImageUrl, opt => opt.Ignore()); // still handled by service
+
 
         // -----------------
         // User 
         // -----------------
         CreateMap<User, UserDTO>().ReverseMap();
+        CreateMap<RegisterUserDTO, User>();
         CreateMap<UserDTO, User>()
             .ForMember(u => u.Password, o => o.Ignore())
             .ForMember(u => u.CreatedAt, o => o.Ignore());
         CreateMap<User, LoginResponseDTO>();
-        CreateMap<RegisterUserDTO, User>();
-
 
         // -----------------
         // Orders 
@@ -72,9 +83,24 @@ public class MappingProfile : Profile
         // -----------------
         // Review 
         // -----------------
-        CreateMap<Review, ReviewDTO>();
+        // Entity -> DTO
+        CreateMap<Review, ReviewDTO>()
+            .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UID))
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.UName : null))
+            .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.PID));
+
+        // DTO -> Entity
         CreateMap<ReviewCreateDTO, Review>()
-            .ForMember(d => d.ReviewID, opt => opt.Ignore());
+            .ForMember(dest => dest.ReviewID, opt => opt.Ignore())   // DB generates
+            .ForMember(dest => dest.UID, opt => opt.Ignore())        // set in service
+            .ForMember(dest => dest.PID, opt => opt.Ignore())        // set in service
+            .ForMember(dest => dest.ReviewDate, opt => opt.Ignore());
+
+        CreateMap<ReviewUpdateDTO, Review>()
+            .ForMember(dest => dest.ReviewID, opt => opt.Ignore())   // never overwrite PK
+            .ForMember(dest => dest.UID, opt => opt.Ignore())
+            .ForMember(dest => dest.PID, opt => opt.Ignore())
+            .ForMember(dest => dest.ReviewDate, opt => opt.Ignore()); // set in service
 
 
 

@@ -19,6 +19,10 @@ namespace E_CommerceSystem.Models.DTO
         public int StockQuantity { get; set; }
 
         public string? ImageUrl { get; set; }
+
+        //  Calculated server-side only
+        [Range(0, 5)]
+        public decimal OverallRating { get; set; }
     }
 
     // DTO for creating a new product

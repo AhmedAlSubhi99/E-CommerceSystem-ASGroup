@@ -2,22 +2,45 @@
 
 namespace E_CommerceSystem.Models.DTO
 {
+    // ==================== For API responses ====================
     public class ReviewDTO
     {
-        [Range(0, 5, ErrorMessage = "The value must be between 0 and 5.")]
-        public int ReviewId { get; set; }
-        public int ProductId { get; set; }
-        public int UID { get; set; }
-        public int Rating { get; set; }
-        public string Comment { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
+        public int ReviewID { get; set; }
 
+        [Required]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
+        public int Rating { get; set; }
+
+        [MaxLength(1000)]
+        public string? Comment { get; set; }
+
+        public DateTime ReviewDate { get; set; }
+
+        // Extra info for clients
+        public int UserId { get; set; }
+        public string? UserName { get; set; }
+        public int ProductId { get; set; }
     }
 
+    // ==================== For creating reviews ====================
     public class ReviewCreateDTO
     {
-        public int ProductId { get; set; }
+        [Required]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
         public int Rating { get; set; }
-        public string Comment { get; set; } = string.Empty;
+
+        [MaxLength(1000)]
+        public string? Comment { get; set; }
+    }
+
+    // ==================== For updating reviews ====================
+    public class ReviewUpdateDTO
+    {
+        [Required]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
+        public int Rating { get; set; }
+
+        [MaxLength(1000)]
+        public string? Comment { get; set; }
     }
 }

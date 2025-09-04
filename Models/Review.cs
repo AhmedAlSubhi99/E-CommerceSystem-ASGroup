@@ -10,26 +10,30 @@ namespace E_CommerceSystem.Models
         public int ReviewID { get; set; }
 
         [Required]
-        [Range(1,5)]
+        [Range(1, 5)]
         public int Rating { get; set; }
 
-        public string Comment { get; set; } = null;
+        [MaxLength(1000)]
+        public string? Comment { get; set; }
 
-        public DateTime ReviewDate { get; set; }
+        [Required]
+        public DateTime ReviewDate { get; set; } = DateTime.UtcNow;
 
-        [ForeignKey("user")]
+        // ---------------------------
+        // Foreign Keys
+        // ---------------------------
+        [Required]
+        [ForeignKey(nameof(User))]
         public int UID { get; set; }
 
         [JsonIgnore]
-        public User user { get; set; }
+        public virtual User User { get; set; } = null!;
 
-        [ForeignKey("product")]
+        [Required]
+        [ForeignKey(nameof(Product))]
         public int PID { get; set; }
 
         [JsonIgnore]
-        public Product product { get; set; }
-
-
-
+        public virtual Product Product { get; set; } = null!;
     }
 }

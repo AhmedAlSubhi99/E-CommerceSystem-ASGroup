@@ -61,6 +61,7 @@ namespace E_CommerceSystem.Services
                 await file.CopyToAsync(stream);
             }
 
+            // ✅ Consistent path for serving via wwwroot
             return $"/images/products/{fileName}";
         }
 
@@ -85,7 +86,8 @@ namespace E_CommerceSystem.Services
 
         // ==================== CRUD OPERATIONS ====================
 
-        public async Task<IEnumerable<Product>> GetProductsAsync(int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice)
+        public async Task<IEnumerable<ProductDTO>> GetProductsAsync(
+            int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice)
         {
             page = page < 1 ? 1 : page;
             pageSize = pageSize < 1 ? 10 : pageSize;
@@ -102,19 +104,22 @@ namespace E_CommerceSystem.Services
             if (maxPrice.HasValue)
                 query = query.Where(p => p.Price <= maxPrice.Value);
 
-            return await query
+            var products = await query
                 .OrderBy(p => p.PID)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
 
-        public async Task<Product> GetProductByIdAsync(int pid)
+        public async Task<ProductDTO> GetProductByIdAsync(int pid)
         {
             var product = await _productRepo.GetProductByIdAsync(pid);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {pid} not found.");
-            return product;
+
+            return _mapper.Map<ProductDTO>(product);
         }
 
         public async Task<ProductDTO> AddProductAsync(Product product, IFormFile? imageFile)
@@ -151,7 +156,7 @@ namespace E_CommerceSystem.Services
                 if (product == null)
                     throw new ArgumentException("Product not found");
 
-                _mapper.Map(dto, product); // Make sure AutoMapper ignores PID
+                _mapper.Map(dto, product); // AutoMapper ignores PID
 
                 if (imageFile != null)
                 {
@@ -196,47 +201,15 @@ namespace E_CommerceSystem.Services
             }
         }
 
-        public async Task<string?> UploadImageAsync(int productId, IFormFile file, string uploadPath)
-        {
-            try
-            {
-                if (file == null || file.Length == 0)
-                    throw new ArgumentException("File is empty.");
-
-                ValidateImage(file);
-
-                if (!Directory.Exists(uploadPath))
-                    Directory.CreateDirectory(uploadPath);
-
-                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-                var filePath = Path.Combine(uploadPath, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-                var imageUrl = $"/uploads/products/{fileName}";
-                _logger.LogInformation("Image uploaded successfully for product {ProductId}, saved at {ImageUrl}",
-                                       productId, imageUrl);
-
-                return imageUrl;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error uploading image for product {ProductId}", productId);
-                throw;
-            }
-        }
-
         // ==================== EXTRA QUERIES ====================
 
-        public async Task<Product> GetProductByNameAsync(string productName)
+        public async Task<ProductDTO> GetProductByNameAsync(string productName)
         {
             var product = await _productRepo.GetProductByNameAsync(productName);
             if (product == null)
                 throw new KeyNotFoundException($"Product with Name {productName} not found.");
-            return product;
+
+            return _mapper.Map<ProductDTO>(product);
         }
 
         public async Task<(IEnumerable<ProductDTO> items, int totalCount)> GetAllPagedAsync(

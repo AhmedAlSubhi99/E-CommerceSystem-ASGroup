@@ -9,9 +9,9 @@ namespace E_CommerceSystem.Services.Interfaces
         Task<ProductDTO> UpdateProductAsync(int productId, ProductUpdateDTO dto, IFormFile? imageFile);
         Task DeleteProductAsync(int productId);
 
-        Task<IEnumerable<Product>> GetProductsAsync(int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice);
-        Task<Product> GetProductByIdAsync(int pid);
-        Task<Product> GetProductByNameAsync(string productName);
+        Task<IEnumerable<ProductDTO>> GetProductsAsync(int page, int pageSize, string? name, decimal? minPrice, decimal? maxPrice);
+        Task<ProductDTO> GetProductByIdAsync(int pid);
+        Task<ProductDTO> GetProductByNameAsync(string productName);
 
         Task<(IEnumerable<ProductDTO> items, int totalCount)> GetAllPagedAsync(
             int pageNumber = 1,
@@ -21,7 +21,5 @@ namespace E_CommerceSystem.Services.Interfaces
             decimal? maxPrice = null);
 
         Task IncrementStockAsync(int productId, int quantity);
-
-        Task<string?> UploadImageAsync(int productId, IFormFile file, string uploadPath);
     }
 }
