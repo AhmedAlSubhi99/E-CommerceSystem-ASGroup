@@ -49,7 +49,8 @@ namespace E_CommerceSystem.Services
         // ---------------------------
         // Async implementation
         // ---------------------------
-        public async Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId)
+        public async Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(
+     int orderId, int requestUserId, bool isAdmin)
         {
             try
             {
@@ -60,17 +61,20 @@ namespace E_CommerceSystem.Services
                     return null;
                 }
 
-                if (order.UID != requestUserId && order.Role != "admin")
+                if (order.UID != requestUserId && !isAdmin)
                 {
-                    _logger.LogWarning("Unauthorized async invoice access attempt for Order {OrderId} by User {UserId}.", orderId, requestUserId);
+                    _logger.LogWarning(
+                        "Unauthorized async invoice access attempt for Order {OrderId} by User {UserId}.",
+                        orderId, requestUserId);
                     return null;
                 }
 
                 var pdfBytes = BuildPdf(order);
                 var fileName = $"Invoice_{orderId}.pdf";
 
-                _logger.LogInformation("Async invoice generated for Order {OrderId} by User {UserId}. File: {FileName}",
-                                       orderId, requestUserId, fileName);
+                _logger.LogInformation(
+                    "Async invoice generated for Order {OrderId} by User {UserId}. File: {FileName}",
+                    orderId, requestUserId, fileName);
 
                 return (pdfBytes, fileName);
             }
@@ -86,7 +90,8 @@ namespace E_CommerceSystem.Services
         // ---------------------------
         private byte[] BuildPdf(OrderSummaryDTO order)
         {
-            _logger.LogDebug("Building PDF for Order {OrderId} with {LineCount} lines.", order.OrderId, order.Lines.Count);
+            _logger.LogDebug("Building PDF for Order {OrderId} with {LineCount} lines.",
+                             order.OrderId, order.Lines.Count);
 
             var document = Document.Create(container =>
             {
@@ -95,12 +100,10 @@ namespace E_CommerceSystem.Services
                     page.Size(PageSizes.A4);
                     page.Margin(40);
 
-                    // Header
                     page.Header()
                         .Text($"Invoice #{order.OrderId}")
                         .SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
 
-                    // Content
                     page.Content().Column(col =>
                     {
                         col.Spacing(10);
@@ -109,7 +112,6 @@ namespace E_CommerceSystem.Services
                         col.Item().Text($"Date: {order.OrderDate:yyyy-MM-dd}").FontSize(12);
                         col.Item().LineHorizontal(1);
 
-                        // Product Table
                         col.Item().Table(table =>
                         {
                             table.ColumnsDefinition(cols =>
@@ -120,7 +122,6 @@ namespace E_CommerceSystem.Services
                                 cols.RelativeColumn(1);
                             });
 
-                            // Header row
                             table.Header(header =>
                             {
                                 header.Cell().Text("Product").Bold();
@@ -129,25 +130,22 @@ namespace E_CommerceSystem.Services
                                 header.Cell().Text("Total").Bold();
                             });
 
-                            // Data rows
                             foreach (var item in order.Lines)
                             {
                                 table.Cell().Text(item.ProductName);
                                 table.Cell().Text(item.Quantity.ToString());
-                                table.Cell().Text($"${item.UnitPrice:F2}");
-                                table.Cell().Text($"${item.LineTotal:F2}");
+                                table.Cell().Text(item.UnitPrice.ToString("C"));
+                                table.Cell().Text(item.LineTotal.ToString("C"));
                             }
                         });
 
                         col.Item().LineHorizontal(1);
 
-                        // Total
                         col.Item().AlignRight()
-                            .Text($"Total: ${order.TotalAmount:F2}")
+                            .Text($"Total: {order.TotalAmount:C}")
                             .Bold().FontSize(14);
                     });
 
-                    // Footer
                     page.Footer()
                         .AlignCenter()
                         .Text("Thank you for your purchase!")
@@ -157,5 +155,6 @@ namespace E_CommerceSystem.Services
 
             return document.GeneratePdf();
         }
+
     }
 }

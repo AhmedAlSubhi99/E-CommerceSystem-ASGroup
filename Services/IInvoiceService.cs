@@ -13,6 +13,6 @@ namespace E_CommerceSystem.Services
         /// Generates a PDF invoice (async).
         /// Returns (bytes, filename) or null.
         /// </summary>
-        Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId);
+        Task<(byte[] Bytes, string FileName)?> GeneratePdfAsync(int orderId, int requestUserId, bool isAdmin);
     }
 }
