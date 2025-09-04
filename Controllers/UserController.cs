@@ -119,7 +119,7 @@ namespace E_CommerceSystem.Controllers
                 Expires = refreshToken.Expires
             });
 
-            return Ok(new { token = jwt });
+            return Ok(new { message = "Login successful", token = jwt });
         }
 
         // -------------------------------

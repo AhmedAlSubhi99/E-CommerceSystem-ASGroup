@@ -3,6 +3,7 @@ using AutoMapper;
 using E_CommerceSystem.Models;
 using E_CommerceSystem.Repositories;
 using E_CommerceSystem.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -68,37 +69,43 @@ namespace E_CommerceSystem
 
             builder.Services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                // Default scheme: try cookie first, then JWT
+                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
+ .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+ {
+     options.Cookie.Name = "jwt";         // cookie name
+     options.Cookie.HttpOnly = true;      // prevent JS access
+     options.Cookie.SameSite = SameSiteMode.Strict;
+     options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
+     options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+ })
+ .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+ {
+     options.TokenValidationParameters = new TokenValidationParameters
+     {
+         ValidateIssuer = true,
+         ValidateAudience = true,
+         ValidateLifetime = true,
+         ValidateIssuerSigningKey = true,
+         ValidIssuer = builder.Configuration["Jwt:Issuer"],
+         ValidAudience = builder.Configuration["Jwt:Audience"],
+         IssuerSigningKey = new SymmetricSecurityKey(
+             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+     };
 
-                    ValidIssuer = jwtSettings["Issuer"],
-                    ValidAudience = jwtSettings["Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtSettings["Key"]))
-                };
-
-                // Read token from cookie
-                options.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = context =>
-                    {
-                        if (context.Request.Cookies.ContainsKey("AuthToken"))
-                        {
-                            context.Token = context.Request.Cookies["AuthToken"];
-                        }
-                        return Task.CompletedTask;
-                    }
-                };
-            });
+     // Allow JWT from cookie
+     options.Events = new JwtBearerEvents
+     {
+         OnMessageReceived = context =>
+         {
+             if (context.Request.Cookies.ContainsKey("jwt"))
+                 context.Token = context.Request.Cookies["jwt"];
+             return Task.CompletedTask;
+         }
+     };
+ });
 
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
