@@ -29,7 +29,7 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         // Add Product
         // -------------------------------
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "admin,manager")]
         [HttpPost("AddProduct")]
         public async Task<IActionResult> AddProduct([FromForm] ProductCreateDTO dto)
         {
@@ -44,7 +44,7 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         // Update Product
         // -------------------------------
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "admin,manager")]
         [HttpPut("UpdateProduct/{id}")]
         public async Task<IActionResult> UpdateProduct(int id, [FromForm] ProductUpdateDTO dto)
         {
@@ -90,7 +90,7 @@ namespace E_CommerceSystem.Controllers
         // -------------------------------
         // Delete Product
         // -------------------------------
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace E_CommerceSystem.Controllers
 {
-    [Authorize(Roles = "admin,manager")]
+    [Authorize(Roles = "Admin,Manager")]
     [ApiController]
     [Route("api/[controller]")]
     public class ReportController : ControllerBase

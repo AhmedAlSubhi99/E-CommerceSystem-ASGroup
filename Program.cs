@@ -13,6 +13,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using QuestPDF.Infrastructure;
 using System.Text;
+using Serilog;
+
 
 namespace E_CommerceSystem
 {
@@ -75,6 +77,15 @@ namespace E_CommerceSystem
             // Auth service
             builder.Services.AddScoped<IAuthService, AuthService>();
 
+            // Serilog config
+            Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+            builder.Host.UseSerilog();
             // Add JWT Authentication
             var jwtSettings = builder.Configuration.GetSection("Jwt");
 
