@@ -36,12 +36,13 @@ namespace E_CommerceSystem.Repositories
         public async Task AddUserAsync(User user)
         {
             await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
         }
 
-        public Task UpdateUserAsync(User user)
+        public async Task UpdateUserAsync(User user)
         {
             _context.Users.Update(user);
-            return Task.CompletedTask;
+            await _context.SaveChangesAsync();
         }
 
         public async Task DeleteUserAsync(int uid)
@@ -49,6 +50,8 @@ namespace E_CommerceSystem.Repositories
             var user = await GetByIdAsync(uid);
             if (user != null)
                 _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+
         }
 
         // ==================== REFRESH TOKENS ====================

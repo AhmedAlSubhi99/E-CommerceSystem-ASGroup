@@ -22,7 +22,7 @@ namespace E_CommerceSystem.Models.DTO
         public string Phone { get; set; } = string.Empty;
 
         [Required]
-        public string Role { get; set; } = "Customer";
+        public string Role { get; set; } = "customer";
     }
 
     // Input DTO for login
@@ -44,7 +44,7 @@ namespace E_CommerceSystem.Models.DTO
         public string UName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
-        public string Role { get; set; } = "Customer";
+        public string Role { get; set; } = "customer";
     }
 
     // Output DTO for login responses

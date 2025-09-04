@@ -24,7 +24,7 @@ namespace E_CommerceSystem.Models
         public string Phone { get; set; } = string.Empty;
 
         [Required]
-        public string Role { get; set; } = "Customer";
+        public string Role { get; set; } = "customer";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

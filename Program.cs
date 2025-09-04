@@ -79,55 +79,44 @@ namespace E_CommerceSystem
 
             // Serilog config
             Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
+                .ReadFrom.Configuration(builder.Configuration)
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
 
             builder.Host.UseSerilog();
-            // Add JWT Authentication
-            var jwtSettings = builder.Configuration.GetSection("Jwt");
 
-            builder.Services.AddAuthentication(options =>
-            {
-                // Default scheme: try cookie first, then JWT
-                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
- .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
- {
-     options.Cookie.Name = "jwt";         // cookie name
-     options.Cookie.HttpOnly = true;      // prevent JS access
-     options.Cookie.SameSite = SameSiteMode.Strict;
-     options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
-     options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
- })
- .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
- {
-     options.TokenValidationParameters = new TokenValidationParameters
-     {
-         ValidateIssuer = true,
-         ValidateAudience = true,
-         ValidateLifetime = true,
-         ValidateIssuerSigningKey = true,
-         ValidIssuer = builder.Configuration["Jwt:Issuer"],
-         ValidAudience = builder.Configuration["Jwt:Audience"],
-         IssuerSigningKey = new SymmetricSecurityKey(
-             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-     };
+            // ================= JWT Authentication =================
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                        ValidAudience = builder.Configuration["Jwt:Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                    };
 
-     // Allow JWT from cookie
-     options.Events = new JwtBearerEvents
-     {
-         OnMessageReceived = context =>
-         {
-             if (context.Request.Cookies.ContainsKey("jwt"))
-                 context.Token = context.Request.Cookies["jwt"];
-             return Task.CompletedTask;
-         }
-     };
- });
+                    //  Allow reading JWT from cookie
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            if (context.Request.Cookies.ContainsKey("jwt"))
+                            {
+                                context.Token = context.Request.Cookies["jwt"];
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
+
 
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -181,7 +170,7 @@ namespace E_CommerceSystem
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-            app.UseAuthentication(); 
+            app.UseAuthentication();
             app.UseMiddleware<E_CommerceSystem.Middleware.ErrorHandlingMiddleware>();
             app.UseAuthorization();
 

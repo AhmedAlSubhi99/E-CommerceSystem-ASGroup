@@ -14,7 +14,7 @@ namespace E_CommerceSystem.Services
 {
     public class AuthService : IAuthService
     {
-        private static readonly string[] AllowedRoles = new[] { "Admin", "Customer", "Manager" };
+        private static readonly string[] AllowedRoles = new[] { "admin", "customer", "manager" };
 
         private readonly IUserRepo _userRepo;
         private readonly IMapper _mapper;
@@ -41,29 +41,34 @@ namespace E_CommerceSystem.Services
         // ----------------------------
         public async Task<UserDTO> RegisterAsync(RegisterUserDTO dto)
         {
+            // Check if user already exists
             var exists = await _userRepo.GetByEmailAsync(dto.Email);
             if (exists != null)
                 throw new InvalidOperationException("Email already registered.");
 
-            var role = string.IsNullOrWhiteSpace(dto.Role) ? "Customer" : dto.Role!.Trim();
+            // Validate role
+            var role = string.IsNullOrWhiteSpace(dto.Role) ? "customer" : dto.Role.Trim();
             if (!AllowedRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
                 throw new InvalidOperationException($"Invalid role. Allowed: {string.Join(", ", AllowedRoles)}");
+
+            // Hash password here (don’t rely on repo)
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
             var user = new User
             {
                 UName = dto.UName,
                 Email = dto.Email,
-                Password = dto.Password,   // repo hashes
-                Role = role
+                Password = hashedPassword,             
+                Role = role,
+                CreatedAt = DateTime.UtcNow
             };
 
+            // Save and return mapped DTO
             await _userRepo.AddUserAsync(user);
 
-            var created = await _userRepo.GetByEmailAsync(dto.Email)
-                          ?? throw new InvalidOperationException("User creation failed.");
-
-            return _mapper.Map<UserDTO>(created);
+            return _mapper.Map<UserDTO>(user);
         }
+
 
         // ----------------------------
         // Login -> issues Access + Refresh & writes cookie
@@ -74,16 +79,24 @@ namespace E_CommerceSystem.Services
             if (user == null)
                 throw new UnauthorizedAccessException("Invalid credentials.");
 
-            // Access token
+            // Generate Access Token
             var (accessToken, accessExp) = GenerateJwt(user);
 
-            // Refresh token
+            // Generate Refresh Token
             var refreshToken = CreateRefreshToken(user.UID, days: 7);
             await _userRepo.AddRefreshTokenAsync(refreshToken);
+            await _userRepo.SaveChangesAsync();
 
-            // Write access token cookie
-            var minutes = GetAccessTokenMinutes();
-            _cookieWriter.Write(_http.HttpContext!.Response, accessToken, minutes);
+            //  Write JWT into secure HttpOnly cookie
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,                          // cannot be accessed by JS
+                Secure = true,                            // HTTPS only
+                SameSite = SameSiteMode.Strict,           // prevent CSRF
+                Expires = accessExp                       // match token expiration
+            };
+
+            _http.HttpContext!.Response.Cookies.Append("jwt", accessToken, cookieOptions);
 
             return new TokenResponseDTO
             {
@@ -93,6 +106,7 @@ namespace E_CommerceSystem.Services
                 RefreshTokenExpiresAtUtc = refreshToken.Expires
             };
         }
+
 
         // ----------------------------
         // Refresh -> rotate refresh tokens
@@ -152,7 +166,7 @@ namespace E_CommerceSystem.Services
                 new Claim(ClaimTypes.NameIdentifier, user.UID.ToString()),
                 new Claim(ClaimTypes.Name, user.UName ?? string.Empty),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.Role, user.Role ?? "Customer")
+                new Claim(ClaimTypes.Role, user.Role ?? "customer")
             };
 
             var minutes = GetAccessTokenMinutes();
@@ -171,8 +185,9 @@ namespace E_CommerceSystem.Services
 
         private int GetAccessTokenMinutes()
         {
-            if (int.TryParse(_cfg["JwtSettings:ExpiryInMinutes"], out var mins) && mins > 0) return mins;
-            return 30;
+            if (int.TryParse(_cfg["Jwt:ExpireMinutes"], out var mins) && mins > 0)
+                return mins;
+            return 60;
         }
 
         private RefreshToken CreateRefreshToken(int userId, int days)
